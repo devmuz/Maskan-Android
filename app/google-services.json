@@ -1,26 +1,87 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "REPLACE-WITH-REAL-FIREBASE-PROJECT-ID",
-    "storage_bucket": "REPLACE-WITH-REAL-FIREBASE-PROJECT-ID.appspot.com"
+    "project_number": "1069668978695",
+    "project_id": "project-c1aab7fe-8aca-4756-82a",
+    "storage_bucket": "project-c1aab7fe-8aca-4756-82a.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:1069668978695:android:8d87707d62501079d35aa2",
         "android_client_info": {
-          "package_name": "com.dxbaistudio.maskan"
+          "package_name": "com.maskan.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1069668978695-086q0e5vtt2qk07rn8o18vtjkqk5dgmm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.maskan.app",
+            "certificate_hash": "14b5201bd00aab2466b0152dd36ac8fa85c5022f"
+          }
+        },
+        {
+          "client_id": "1069668978695-g313aj19iqs4cjdnh4seu9nigeb0jota.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "PLACEHOLDER_API_KEY_REPLACE_ME"
+          "current_key": "AIzaSyBUv5Pdegf8GVNVFX7Wx2q5_BBDA01pDDU"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1069668978695-g313aj19iqs4cjdnh4seu9nigeb0jota.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1069668978695-jta8e0gl40c2377ji31mipuodfe2tua9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.maskan.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1069668978695:android:1b39e10564bcaa0ad35aa2",
+        "android_client_info": {
+          "package_name": "com.maskan.mobileapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1069668978695-g313aj19iqs4cjdnh4seu9nigeb0jota.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUv5Pdegf8GVNVFX7Wx2q5_BBDA01pDDU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1069668978695-g313aj19iqs4cjdnh4seu9nigeb0jota.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1069668978695-jta8e0gl40c2377ji31mipuodfe2tua9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.maskan.app"
+              }
+            }
+          ]
         }
       }
     }

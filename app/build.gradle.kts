@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.dxbaistudio.maskan"
+    namespace = "com.maskan.mobileapp"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.dxbaistudio.maskan"
+        applicationId = "com.maskan.mobileapp"
         minSdk = 24
         targetSdk = 37
         versionCode = 1
