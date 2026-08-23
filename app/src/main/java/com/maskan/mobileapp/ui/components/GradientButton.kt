@@ -58,6 +58,12 @@ fun GradientButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val isActive = enabled && !isLoading
+    // Disabled (invalid form state) gets its own flat, muted look rather than a
+    // translucent gradient — a semi-transparent gold can blend with a light
+    // background into a pale yellow that reads as *more* prominent than the
+    // fully-opaque enabled button, which made the disabled Save button look
+    // active by default and the enabled one look muted once the form was valid.
+    val isDisabledLook = !enabled
 
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.97f else 1f,
@@ -65,14 +71,15 @@ fun GradientButton(
         label = "buttonScale",
     )
     val contentAlpha = when {
-        !isActive -> 0.6f
+        isDisabledLook -> 1f
+        isLoading -> 0.75f
         isPressed -> 0.9f
         else -> 1f
     }
 
     val resolvedBrush = brush ?: colors.accentGradient
-    val resolvedContentColor = contentColor ?: colors.onAccent
-    val shadowTint = if (brush == null) colors.accentGradientShadowTint.copy(alpha = 0.35f) else colors.shadowColor
+    val resolvedContentColor = if (isDisabledLook) colors.textTertiary else (contentColor ?: colors.onAccent)
+    val shadowTint = if (isDisabledLook) Color.Transparent else if (brush == null) colors.accentGradientShadowTint.copy(alpha = 0.35f) else colors.shadowColor
     val shape = RoundedCornerShape(MaskanDimens.cornerRadius)
 
     Box(
@@ -80,10 +87,10 @@ fun GradientButton(
             .fillMaxWidth()
             .height(MaskanDimens.buttonHeight)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .shadow(elevation = 16.dp, shape = shape, ambientColor = shadowTint, spotColor = shadowTint)
+            .shadow(elevation = if (isDisabledLook) 0.dp else 16.dp, shape = shape, ambientColor = shadowTint, spotColor = shadowTint)
             .clip(shape)
-            .background(resolvedBrush)
-            .border(BorderStroke(0.75.dp, Color.White.copy(alpha = 0.35f)), shape)
+            .then(if (isDisabledLook) Modifier.background(colors.fieldBackground) else Modifier.background(resolvedBrush))
+            .border(BorderStroke(0.75.dp, if (isDisabledLook) colors.border else Color.White.copy(alpha = 0.35f)), shape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,

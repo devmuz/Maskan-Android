@@ -7,6 +7,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Source
+import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.awaitClose
@@ -45,7 +46,7 @@ data class AssignedTenant(val tenant: Tenant, val temporaryPassword: String)
  * iOS's `propertyId` value isn't this repo's to do (shared schema/other
  * client — see CLAUDE.md), so both fields are queried here instead.
  */
-class TenantRepository(private val firestore: FirebaseFirestore) {
+class TenantRepository(private val firestore: FirebaseFirestore, private val functions: FirebaseFunctions) {
     private val tenantsCollection = firestore.collection("tenants")
     private val propertiesCollection = firestore.collection("properties")
 
@@ -235,12 +236,11 @@ class TenantRepository(private val firestore: FirebaseFirestore) {
     }
 
     /**
-     * Verified and rewritten entirely client-side (09-tenant-app.md): recompute
-     * SHA-256(storedSalt + currentPassword) and compare against the stored
-     * hash to confirm the current password, then generate a fresh salt and
-     * write both fields back. Must use the exact same scheme as
-     * `PasswordHasher`/the `tenantLogin` Cloud Function, or the tenant would
-     * "successfully" change their password while breaking their own login.
+     * Current password is verified client-side for fast feedback; the actual
+     * Firestore write goes through the `changeTenantPassword` Cloud Function
+     * (Admin SDK) because the tenant's custom-token UID isn't permitted to
+     * write to the tenants collection directly (security rule requires
+     * landlordId == auth.uid).
      */
     suspend fun changePassword(tenant: Tenant, currentPassword: String, newPassword: String) {
         val currentHash = PasswordHasher.hash(tenant.passwordSalt, currentPassword)
@@ -248,8 +248,8 @@ class TenantRepository(private val firestore: FirebaseFirestore) {
 
         val newSalt = PasswordHasher.generateSalt()
         val newHash = PasswordHasher.hash(newSalt, newPassword)
-        tenantsCollection.document(tenant.id)
-            .update(mapOf("passwordHash" to newHash, "passwordSalt" to newSalt))
+        functions.getHttpsCallable("changeTenantPassword")
+            .call(hashMapOf("passwordHash" to newHash, "passwordSalt" to newSalt))
             .await()
     }
 }
