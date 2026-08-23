@@ -13,12 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,10 +28,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maskan.mobileapp.data.model.Bill
 import com.maskan.mobileapp.data.model.BillStatus
+import com.maskan.mobileapp.data.model.PaidBy
 import com.maskan.mobileapp.data.model.Property
 import com.maskan.mobileapp.data.util.PeriodFormatter
 import com.maskan.mobileapp.ui.components.EmptyState
@@ -79,9 +82,16 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
             .sortedBy { (propertyId, _) -> propertiesById[propertyId]?.displayTitle ?: "" }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
+    Scaffold(
+        containerColor = colors.background,
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddClick, containerColor = colors.gradientStart, contentColor = Color.White) {
+                Icon(Icons.Filled.Add, contentDescription = "Add Bill")
+            }
+        },
+    ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(innerPadding).background(colors.background),
             contentPadding = PaddingValues(horizontal = MaskanDimens.screenHPadding, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.itemSpacing),
         ) {
@@ -132,28 +142,20 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
                 }
             }
         }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 12.dp, end = MaskanDimens.screenHPadding)
-                .size(44.dp)
-                .background(colors.fieldBackground, CircleShape)
-                .clickable(onClick = onAddClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = "Add Bill", tint = colors.gradientStart)
-        }
     }
 }
 
 @Composable
 private fun BillRow(bill: Bill, numberFormat: NumberFormat, dateFormat: SimpleDateFormat, onClick: () -> Unit) {
     val colors = MaskanTheme.colors
+    // `verifying` shows as "Pending" here — it's an internal state meaning "tenant says
+    // they paid, awaiting confirmation," not part of this list's status vocabulary
+    // (07-landlord-bills.md's `landlordDisplayStatus`). Bill Detail shows the real status.
+    val landlordDisplayLabel = if (bill.status == BillStatus.VERIFYING) BillStatus.PENDING.label else bill.status.label
     val statusColor = when (bill.status) {
         BillStatus.PAID -> colors.success
         BillStatus.OVERDUE -> colors.danger
-        BillStatus.PENDING -> colors.warning
+        BillStatus.PENDING, BillStatus.VERIFYING -> colors.warning
     }
 
     Row(
@@ -169,7 +171,12 @@ private fun BillRow(bill: Bill, numberFormat: NumberFormat, dateFormat: SimpleDa
                 Icon(billTypeIcon(bill.type), contentDescription = null, tint = colors.gradientStart, modifier = Modifier.size(18.dp))
             }
             Column {
-                Text(text = bill.type.label, style = MaskanType.bodyMedium, color = colors.textPrimary)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(text = bill.type.label, style = MaskanType.bodyMedium, color = colors.textPrimary)
+                    if (bill.paidBy == PaidBy.LANDLORD) {
+                        StatusBadge(text = "Expense", color = colors.gradientStart)
+                    }
+                }
                 Text(
                     text = "${PeriodFormatter.displayLabel(bill.period)} · Due ${bill.dueDate?.let { dateFormat.format(it) } ?: "—"}",
                     style = MaskanType.secondary,
@@ -179,7 +186,7 @@ private fun BillRow(bill: Bill, numberFormat: NumberFormat, dateFormat: SimpleDa
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(text = numberFormat.format(bill.amount), style = MaskanType.bodyMedium, color = colors.textPrimary)
-            StatusBadge(text = bill.status.label, color = statusColor, modifier = Modifier.padding(top = 4.dp))
+            StatusBadge(text = landlordDisplayLabel, color = statusColor, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }

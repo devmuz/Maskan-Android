@@ -17,16 +17,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.HourglassBottom
-import androidx.compose.material.icons.filled.HowToReg
 import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -41,9 +42,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maskan.mobileapp.data.model.Bill
 import com.maskan.mobileapp.data.model.Property
+import com.maskan.mobileapp.data.model.ServiceRequestStatus
 import com.maskan.mobileapp.ui.components.ChartLegend
 import com.maskan.mobileapp.ui.components.GroupedBarChart
 import com.maskan.mobileapp.ui.components.MaskanCard
@@ -63,15 +66,18 @@ import java.util.Locale
 @Composable
 fun DashboardScreen(
     viewModel: LandlordViewModel,
-    onAddProperty: () -> Unit,
     onAddTenant: () -> Unit,
     onAddBill: () -> Unit,
+    onRecordPayment: () -> Unit,
+    onOpenRequests: () -> Unit,
 ) {
     val colors = MaskanTheme.colors
     val properties by viewModel.properties.collectAsStateWithLifecycle()
     val tenants by viewModel.tenants.collectAsStateWithLifecycle()
     val bills by viewModel.bills.collectAsStateWithLifecycle()
     val payments by viewModel.payments.collectAsStateWithLifecycle()
+    val requests by viewModel.requests.collectAsStateWithLifecycle()
+    val pendingRequestCount = remember(requests) { requests.count { it.status == ServiceRequestStatus.PENDING } }
 
     val today = remember { LocalDate.now() }
     val scope = rememberCoroutineScope()
@@ -79,17 +85,14 @@ fun DashboardScreen(
 
     val overdue = remember(bills) { overdueBills(bills, today) }
     val upcoming = remember(bills) { upcomingBills(bills, today) }
-    val pendingTotal = remember(bills) { pendingDuesTotal(bills) }
     val chartBuckets = remember(bills, payments) { chartBuckets(bills, payments) }
     val propertiesById = remember(properties) { properties.associateBy { it.id } }
     val numberFormat = remember { NumberFormat.getNumberInstance(Locale.getDefault()) }
 
     val statCards = listOf(
         StatCardData(Icons.Filled.Apartment, properties.size.toString(), "Properties", colors.gradientStart),
-        StatCardData(Icons.Filled.People, tenants.count { it.isActive }.toString(), "Tenants", colors.gradientEnd),
-        StatCardData(Icons.Filled.HowToReg, properties.count { it.occupied }.toString(), "Occupied", colors.success),
+        StatCardData(Icons.Filled.People, tenants.count { it.isActive }.toString(), "Tenants", colors.success),
         StatCardData(Icons.Filled.MeetingRoom, properties.count { !it.occupied }.toString(), "Vacant", colors.warning),
-        StatCardData(Icons.Filled.HourglassBottom, if (pendingTotal > 0) numberFormat.format(pendingTotal) else "—", "Pending Dues", colors.danger),
     )
 
     PullToRefreshBox(
@@ -109,14 +112,66 @@ fun DashboardScreen(
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
             item {
-                Text(text = "Dashboard", style = MaskanType.screenTitle, color = colors.textPrimary)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(text = "Dashboard", style = MaskanType.screenTitle, color = colors.textPrimary)
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(colors.surface, CircleShape)
+                                .clip(CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            IconButton(onClick = onOpenRequests) {
+                                Icon(Icons.Filled.Notifications, contentDescription = "Service Requests", tint = colors.gradientStart)
+                            }
+                        }
+                        if (pendingRequestCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(top = 2.dp, end = 0.dp)
+                                    .size(18.dp)
+                                    .background(colors.danger, RoundedCornerShape(50)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = if (pendingRequestCount > 99) "99" else pendingRequestCount.toString(),
+                                    style = MaskanType.caption.copy(fontSize = 9.sp),
+                                    color = Color.White,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(colors.primaryGradient, RoundedCornerShape(MaskanDimens.cornerRadius))
+                        .padding(MaskanDimens.cardPadding),
+                ) {
+                    Text(text = "Everything, at a glance", style = MaskanType.cardTitle.copy(fontSize = 22.sp), color = Color.White)
+                    Text(
+                        text = "Occupancy, dues, and activity across every property you manage.",
+                        style = MaskanType.secondary,
+                        color = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
 
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(MaskanDimens.itemSpacing), modifier = Modifier.fillMaxWidth()) {
-                    QuickActionButton("Add Property", Modifier.weight(1f), onAddProperty)
                     QuickActionButton("Add Tenant", Modifier.weight(1f), onAddTenant)
                     QuickActionButton("Add Bill", Modifier.weight(1f), onAddBill)
+                    QuickActionButton("Record Payment", Modifier.weight(1f), onRecordPayment)
                 }
             }
 

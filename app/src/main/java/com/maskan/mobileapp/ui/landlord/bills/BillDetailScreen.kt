@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -85,9 +86,10 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
         BillStatus.PAID -> colors.success
         BillStatus.OVERDUE -> colors.danger
         BillStatus.PENDING -> colors.warning
+        BillStatus.VERIFYING -> colors.warning
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background)) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
         Row(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
             IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
         }
@@ -113,13 +115,29 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
                     DetailRow("Property", property?.let { if (it.unit.isNotBlank()) "${it.displayBuildingName} · ${it.unit}" else it.displayBuildingName } ?: "—")
                     DetailRow("Period", PeriodFormatter.displayLabel(bill.period))
                     bill.frequency?.let { DetailRow("Frequency", it.label) }
+                    DetailRow("Paid By", bill.paidBy.label)
                     DetailRow("Due Date", bill.dueDate?.let { dateFormat.format(it) } ?: "—")
                     bill.paidAt?.let { DetailRow("Paid On", dateFormat.format(it)) }
                     bill.notes?.takeIf { it.isNotBlank() }?.let { DetailRow("Notes", it) }
                 }
             }
 
-            if (bill.status != BillStatus.PAID) {
+            if (bill.status == BillStatus.VERIFYING) {
+                // Tenant submitted proof of payment — Approve/Reject replace the normal
+                // record/status buttons entirely (07-landlord-bills.md).
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    GradientButton(
+                        text = "Approve Payment",
+                        onClick = { scope.launch { viewModel.billingRepository.approvePayment(bill) } },
+                    )
+                    GradientButton(
+                        text = "Reject Payment",
+                        brush = androidx.compose.ui.graphics.SolidColor(colors.danger),
+                        contentColor = androidx.compose.ui.graphics.Color.White,
+                        onClick = { scope.launch { viewModel.billingRepository.rejectPayment(bill) } },
+                    )
+                }
+            } else if (bill.status != BillStatus.PAID) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     GradientButton(text = "Record Payment", onClick = { showRecordPayment = true })
                     when (bill.status) {
@@ -135,7 +153,7 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
                             contentColor = androidx.compose.ui.graphics.Color.White,
                             onClick = { scope.launch { viewModel.billingRepository.markPending(bill.id) } },
                         )
-                        BillStatus.PAID -> Unit
+                        BillStatus.PAID, BillStatus.VERIFYING -> Unit
                     }
                 }
             }

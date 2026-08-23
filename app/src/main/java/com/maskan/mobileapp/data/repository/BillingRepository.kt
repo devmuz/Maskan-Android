@@ -3,8 +3,10 @@ package com.maskan.mobileapp.data.repository
 import com.maskan.mobileapp.data.model.Bill
 import com.maskan.mobileapp.data.model.BillType
 import com.maskan.mobileapp.data.model.Frequency
+import com.maskan.mobileapp.data.model.PaidBy
 import com.maskan.mobileapp.data.model.Payment
 import com.maskan.mobileapp.data.util.PeriodFormatter
+import com.maskan.mobileapp.data.util.toLocalDate
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Source
@@ -24,6 +26,7 @@ data class NewBillInput(
     val propertyId: String,
     val type: BillType,
     val frequency: Frequency,
+    val paidBy: PaidBy,
     val amount: Double,
     val referenceDate: LocalDate,
     val dueDate: Date,
@@ -103,6 +106,7 @@ class BillingRepository(private val firestore: FirebaseFirestore) {
                 "status" to "pending",
                 "dueDate" to input.dueDate,
                 "frequency" to input.frequency.raw,
+                "paidBy" to input.paidBy.raw,
                 "notes" to input.notes,
                 "createdAt" to FieldValue.serverTimestamp(),
             ),
@@ -129,15 +133,15 @@ class BillingRepository(private val firestore: FirebaseFirestore) {
     }
 
     /**
-     * Legacy path (Tenant Detail "Record Payment"): finds-or-creates *this
-     * month's* rent bill for the property and marks it paid, in the same
-     * batch as the payment doc.
+     * "Record Payment" flow (Dashboard quick action + Tenant Detail): finds-or-creates
+     * the bill for this property/type/period (period derived from [paidDate] and the
+     * type's default frequency) and marks it paid, in the same batch as the payment doc.
      */
-    suspend fun recordRentPayment(landlordId: String, propertyId: String, amount: Double, paidDate: Date, method: String, notes: String?) {
-        val period = PeriodFormatter.currentMonthRentPeriod()
+    suspend fun recordPaymentForBillType(landlordId: String, propertyId: String, type: BillType, amount: Double, paidDate: Date, method: String, notes: String?) {
+        val period = PeriodFormatter.periodFor(paidDate.toLocalDate(), type.defaultFrequency)
         val existing = billsCollection
             .whereEqualTo("propertyId", propertyId)
-            .whereEqualTo("type", BillType.RENT.raw)
+            .whereEqualTo("type", type.raw)
             .whereEqualTo("period", period)
             .limit(1)
             .get()
@@ -155,12 +159,12 @@ class BillingRepository(private val firestore: FirebaseFirestore) {
                 hashMapOf(
                     "propertyId" to propertyId,
                     "landlordId" to landlordId,
-                    "type" to BillType.RENT.raw,
+                    "type" to type.raw,
                     "period" to period,
                     "amount" to amount,
                     "status" to "paid",
                     "dueDate" to paidDate,
-                    "frequency" to Frequency.MONTHLY.raw,
+                    "frequency" to type.defaultFrequency.raw,
                     "paidAt" to paidDate,
                     "createdAt" to FieldValue.serverTimestamp(),
                 ),
@@ -248,6 +252,56 @@ class BillingRepository(private val firestore: FirebaseFirestore) {
                 trySend(snapshot?.toObjects(Payment::class.java).orEmpty())
             }
         awaitClose { registration.remove() }
+    }
+
+    /**
+     * Landlord confirms a tenant's "I've Paid This Bill" submission
+     * (07-landlord-bills.md): the bill -> "paid", `paidAt` taken from the
+     * pending payment's `paidDate`. The payment doc itself needs no
+     * further write — it was already correctly shaped when the tenant
+     * created it.
+     */
+    suspend fun approvePayment(bill: Bill) {
+        val pending = paymentsCollection.whereEqualTo("billId", bill.id).get().await()
+            .toObjects(Payment::class.java)
+            .maxByOrNull { it.paidDate ?: Date(0) }
+            ?: error("No pending payment found for this bill")
+        billsCollection.document(bill.id).update(mapOf("status" to "paid", "paidAt" to pending.paidDate)).await()
+    }
+
+    /** Deletes the pending payment doc and reverts the bill -> "pending", as if the tenant's submission never happened. */
+    suspend fun rejectPayment(bill: Bill) {
+        val pendingDoc = paymentsCollection.whereEqualTo("billId", bill.id).get().await().documents
+            .maxByOrNull { it.getDate("paidDate")?.time ?: 0L }
+        val batch = firestore.batch()
+        pendingDoc?.let { batch.delete(it.reference) }
+        batch.update(billsCollection.document(bill.id), "status", "pending")
+        batch.commit().await()
+    }
+
+    /**
+     * Tenant-initiated "I've Paid This Bill" (09-tenant-app.md): a batch write
+     * that sets the bill to `"verifying"` (plus the amount the tenant entered)
+     * and creates a pending `payments` doc. The bill stays `verifying` until
+     * the landlord approves (-> paid) or rejects (-> back to pending, payment
+     * doc deleted) — see `07-landlord-bills.md`.
+     */
+    suspend fun submitPaymentForVerification(bill: Bill, amount: Double, paidDate: Date, method: String, notes: String?) {
+        val batch = firestore.batch()
+        batch.update(billsCollection.document(bill.id), mapOf("status" to "verifying", "amount" to amount))
+        batch.set(
+            paymentsCollection.document(),
+            hashMapOf(
+                "billId" to bill.id,
+                "propertyId" to bill.propertyId,
+                "landlordId" to bill.landlordId,
+                "amount" to amount,
+                "paidDate" to paidDate,
+                "method" to method,
+                "notes" to notes,
+            ),
+        )
+        batch.commit().await()
     }
 
     suspend fun sendReminder(tenantId: String, message: String) {

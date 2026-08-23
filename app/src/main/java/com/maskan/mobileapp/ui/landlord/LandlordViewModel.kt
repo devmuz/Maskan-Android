@@ -27,10 +27,15 @@ class LandlordViewModel(private val container: AppContainer) : ViewModel() {
     val tenants get() = container.tenantRepository.tenants
     val bills get() = container.billingRepository.bills
     val payments get() = container.billingRepository.payments
+    val requests get() = container.serviceRequestRepository.requests
+    val landlord get() = container.landlordRepository.landlord
 
     val propertyRepository get() = container.propertyRepository
     val tenantRepository get() = container.tenantRepository
     val billingRepository get() = container.billingRepository
+    val serviceRequestRepository get() = container.serviceRequestRepository
+    val landlordRepository get() = container.landlordRepository
+    val purchaseRepository get() = container.purchaseRepository
 
     val landlordUid: String get() = landlordId
 
@@ -52,10 +57,20 @@ class LandlordViewModel(private val container: AppContainer) : ViewModel() {
         val id = landlordId
         container.propertyRepository.startListening(viewModelScope, id)
         container.billingRepository.startListening(viewModelScope, id)
+        container.serviceRequestRepository.startListening(viewModelScope, id)
+        container.landlordRepository.startListening(viewModelScope, id)
         viewModelScope.launch {
             container.propertyRepository.properties.collect { properties ->
-                container.tenantRepository.startListening(viewModelScope, properties.map { it.id })
+                container.tenantRepository.startListening(viewModelScope, id, properties.map { it.id })
             }
+        }
+        viewModelScope.launch {
+            container.landlordRepository.ensureProfileExists(id, container.authRepository.currentUser?.email)
+        }
+        container.purchaseRepository.activeLandlordId = id
+        viewModelScope.launch {
+            container.purchaseRepository.loadProducts()
+            container.purchaseRepository.restorePurchases()
         }
     }
 
@@ -65,7 +80,7 @@ class LandlordViewModel(private val container: AppContainer) : ViewModel() {
         kotlinx.coroutines.coroutineScope {
             launch { container.propertyRepository.refresh(id) }
             launch { container.billingRepository.refresh(id) }
-            launch { container.tenantRepository.refresh(container.propertyRepository.properties.value.map { it.id }) }
+            launch { container.tenantRepository.refresh(id, container.propertyRepository.properties.value.map { it.id }) }
         }
     }
 
@@ -73,6 +88,9 @@ class LandlordViewModel(private val container: AppContainer) : ViewModel() {
         container.propertyRepository.stopListening()
         container.tenantRepository.stopListening()
         container.billingRepository.stopListening()
+        container.serviceRequestRepository.stopListening()
+        container.landlordRepository.stopListening()
+        container.purchaseRepository.activeLandlordId = null
         container.authRepository.signOut()
     }
 
@@ -80,6 +98,8 @@ class LandlordViewModel(private val container: AppContainer) : ViewModel() {
         container.propertyRepository.stopListening()
         container.tenantRepository.stopListening()
         container.billingRepository.stopListening()
+        container.serviceRequestRepository.stopListening()
+        container.landlordRepository.stopListening()
     }
 
     class Factory(private val container: AppContainer) : ViewModelProvider.Factory {

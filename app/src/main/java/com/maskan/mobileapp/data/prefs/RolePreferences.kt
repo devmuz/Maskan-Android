@@ -3,11 +3,8 @@ package com.maskan.mobileapp.data.prefs
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-
-private val Context.dataStore by preferencesDataStore(name = "maskan_prefs")
 
 /** Which flow the user entered through — not derived from any Firebase Auth claim (00-overview.md). */
 enum class UserRole(val raw: String) {
@@ -30,24 +27,24 @@ class RolePreferences(private val context: Context) {
     // "which tenant am I" via a Firestore lookup without asking them to log in again.
     private val tenantPropertyIdCodeKey = stringPreferencesKey("tenant_property_id_code")
 
-    val roleFlow: Flow<UserRole?> = context.dataStore.data.map { prefs ->
+    val roleFlow: Flow<UserRole?> = context.maskanDataStore.data.map { prefs ->
         UserRole.fromRaw(prefs[roleKey])
     }
 
-    val tenantPropertyIdCodeFlow: Flow<String?> = context.dataStore.data.map { prefs ->
+    val tenantPropertyIdCodeFlow: Flow<String?> = context.maskanDataStore.data.map { prefs ->
         prefs[tenantPropertyIdCodeKey]
     }
 
     suspend fun setRole(role: UserRole) {
-        context.dataStore.edit { it[roleKey] = role.raw }
+        context.maskanDataStore.edit { it[roleKey] = role.raw }
     }
 
     suspend fun setTenantPropertyIdCode(code: String) {
-        context.dataStore.edit { it[tenantPropertyIdCodeKey] = code }
+        context.maskanDataStore.edit { it[tenantPropertyIdCodeKey] = code }
     }
 
     suspend fun clearRole() {
-        context.dataStore.edit {
+        context.maskanDataStore.edit {
             it.remove(roleKey)
             it.remove(tenantPropertyIdCodeKey)
         }

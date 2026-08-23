@@ -5,6 +5,7 @@ import com.maskan.mobileapp.data.model.Tenant
 import com.maskan.mobileapp.data.util.PasswordHasher
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Source
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -12,6 +13,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.tasks.await
@@ -25,6 +27,23 @@ data class AssignedTenant(val tenant: Tenant, val temporaryPassword: String)
  * so this listener is (re)started whenever the property ID set actually
  * changes, guarded against churn on every unrelated snapshot
  * (00-overview.md / 04-landlord-dashboard.md).
+ *
+ * Every query also filters on `landlordId`. Firestore rejects a whole list
+ * query outright — not per-document — if it can't statically prove the
+ * security rule holds for every possible match; the `tenants` rule is an OR
+ * of `landlordId == auth.uid` / `auth.uid == tenantId` / property-co-owner
+ * access, and a query with no `landlordId` filter gives Firestore nothing to
+ * prove the first branch with, so it denies the entire query with
+ * PERMISSION_DENIED (silently, from this class's point of view, since errors
+ * here just drop the snapshot).
+ *
+ * Tenants are matched on **either** `propertyId` or `propertyDocumentId`,
+ * merged and de-duped client-side: iOS-created tenant docs put the property's
+ * human-readable code (not the Firestore doc ID) in `propertyId` and rely on
+ * `propertyDocumentId` for the real doc ID, while Android/Flutter-created
+ * docs use `propertyId` correctly and never set `propertyDocumentId`. Fixing
+ * iOS's `propertyId` value isn't this repo's to do (shared schema/other
+ * client — see CLAUDE.md), so both fields are queried here instead.
  */
 class TenantRepository(private val firestore: FirebaseFirestore) {
     private val tenantsCollection = firestore.collection("tenants")
@@ -34,13 +53,13 @@ class TenantRepository(private val firestore: FirebaseFirestore) {
     val tenants: StateFlow<List<Tenant>> = _tenants
 
     private var listenerJobs: List<Job> = emptyList()
-    private var currentPropertyIds: Set<String> = emptySet()
+    private var currentKey: Pair<String, Set<String>>? = null
     private val perChunkResults = mutableMapOf<Int, List<Tenant>>()
 
-    fun startListening(scope: CoroutineScope, propertyIds: List<String>) {
-        val idSet = propertyIds.toSet()
-        if (idSet == currentPropertyIds) return
-        currentPropertyIds = idSet
+    fun startListening(scope: CoroutineScope, landlordId: String, propertyIds: List<String>) {
+        val key = landlordId to propertyIds.toSet()
+        if (key == currentKey) return
+        currentKey = key
 
         listenerJobs.forEach { it.cancel() }
         perChunkResults.clear()
@@ -48,7 +67,7 @@ class TenantRepository(private val firestore: FirebaseFirestore) {
         if (propertyIds.isEmpty()) return
 
         listenerJobs = propertyIds.chunked(30).mapIndexed { index, chunk ->
-            tenantChunkFlow(chunk)
+            tenantChunkFlow(landlordId, chunk)
                 .onEach { list ->
                     perChunkResults[index] = list
                     _tenants.value = perChunkResults.values.flatten()
@@ -60,31 +79,39 @@ class TenantRepository(private val firestore: FirebaseFirestore) {
     fun stopListening() {
         listenerJobs.forEach { it.cancel() }
         listenerJobs = emptyList()
-        currentPropertyIds = emptySet()
+        currentKey = null
         perChunkResults.clear()
         _tenants.value = emptyList()
     }
 
-    private fun tenantChunkFlow(propertyIds: List<String>) = callbackFlow {
-        val registration = tenantsCollection
-            .whereIn("propertyId", propertyIds)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
-                trySend(snapshot?.toObjects(Tenant::class.java).orEmpty())
-            }
+    private fun tenantChunkFlow(landlordId: String, propertyIds: List<String>) = combine(
+        tenantQueryFlow(tenantsCollection.whereEqualTo("landlordId", landlordId).whereIn("propertyId", propertyIds)),
+        tenantQueryFlow(tenantsCollection.whereEqualTo("landlordId", landlordId).whereIn("propertyDocumentId", propertyIds)),
+    ) { byPropertyId, byPropertyDocumentId ->
+        (byPropertyId + byPropertyDocumentId).distinctBy { it.id }
+    }
+
+    private fun tenantQueryFlow(query: Query) = callbackFlow {
+        val registration = query.addSnapshotListener { snapshot, error ->
+            if (error != null) return@addSnapshotListener
+            trySend(snapshot?.toObjects(Tenant::class.java).orEmpty())
+        }
         awaitClose { registration.remove() }
     }
 
     /** Pull-to-refresh: force a server read; listeners stay attached. */
-    suspend fun refresh(propertyIds: List<String>) {
+    suspend fun refresh(landlordId: String, propertyIds: List<String>) {
         if (propertyIds.isEmpty()) {
             _tenants.value = emptyList()
             return
         }
-        val results = propertyIds.chunked(30).map { chunk ->
-            tenantsCollection.whereIn("propertyId", chunk).get(Source.SERVER).await().toObjects(Tenant::class.java)
-        }
-        _tenants.value = results.flatten()
+        val results = propertyIds.chunked(30).flatMap { chunk ->
+            listOf(
+                tenantsCollection.whereEqualTo("landlordId", landlordId).whereIn("propertyId", chunk),
+                tenantsCollection.whereEqualTo("landlordId", landlordId).whereIn("propertyDocumentId", chunk),
+            )
+        }.map { it.get(Source.SERVER).await().toObjects(Tenant::class.java) }
+        _tenants.value = results.flatten().distinctBy { it.id }
     }
 
     /**
@@ -145,6 +172,23 @@ class TenantRepository(private val firestore: FirebaseFirestore) {
         tenantsCollection.document(tenantId).update("rentDueDay", day).await()
     }
 
+    /**
+     * Landlord-initiated credential reset (06-landlord-tenants.md's only other
+     * path to a fresh password was move-out + reassign; this is the direct
+     * equivalent without freeing the property). Same one-time-reveal contract
+     * as `assignTenant`: the plaintext password is returned once and never
+     * stored.
+     */
+    suspend fun regeneratePassword(tenant: Tenant): String {
+        val salt = PasswordHasher.generateSalt()
+        val tempPassword = PasswordHasher.generateTempPassword()
+        val hash = PasswordHasher.hash(salt, tempPassword)
+        tenantsCollection.document(tenant.id)
+            .update(mapOf("passwordHash" to hash, "passwordSalt" to salt))
+            .await()
+        return tempPassword
+    }
+
     /** Revokes login immediately (empty hash can never match) and frees the property, in one batch. */
     suspend fun markMovedOut(tenant: Tenant, moveOutDate: Date) {
         val batch = firestore.batch()
@@ -152,7 +196,7 @@ class TenantRepository(private val firestore: FirebaseFirestore) {
             tenantsCollection.document(tenant.id),
             mapOf("status" to "old", "moveOutDate" to moveOutDate, "passwordHash" to ""),
         )
-        batch.update(propertiesCollection.document(tenant.propertyId), "occupied", false)
+        batch.update(propertiesCollection.document(tenant.resolvedPropertyId), "occupied", false)
         batch.commit().await()
     }
 
@@ -161,7 +205,7 @@ class TenantRepository(private val firestore: FirebaseFirestore) {
         val batch = firestore.batch()
         batch.delete(tenantsCollection.document(tenant.id))
         if (tenant.isActive) {
-            batch.update(propertiesCollection.document(tenant.propertyId), "occupied", false)
+            batch.update(propertiesCollection.document(tenant.resolvedPropertyId), "occupied", false)
         }
         batch.commit().await()
     }
@@ -174,4 +218,38 @@ class TenantRepository(private val firestore: FirebaseFirestore) {
             .await()
             .toObjects(Tenant::class.java)
             .firstOrNull()
+
+    /**
+     * Live self-listener for the signed-in tenant. `tenantId` is the
+     * Firebase Auth UID, which *equals* the tenant's Firestore doc ID —
+     * the `tenantLogin` Cloud Function mints the custom token from the
+     * tenant doc ID (09-tenant-app.md).
+     */
+    fun tenantDocFlow(tenantId: String) = callbackFlow {
+        val registration = tenantsCollection.document(tenantId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                trySend(snapshot?.toObject(Tenant::class.java))
+            }
+        awaitClose { registration.remove() }
+    }
+
+    /**
+     * Verified and rewritten entirely client-side (09-tenant-app.md): recompute
+     * SHA-256(storedSalt + currentPassword) and compare against the stored
+     * hash to confirm the current password, then generate a fresh salt and
+     * write both fields back. Must use the exact same scheme as
+     * `PasswordHasher`/the `tenantLogin` Cloud Function, or the tenant would
+     * "successfully" change their password while breaking their own login.
+     */
+    suspend fun changePassword(tenant: Tenant, currentPassword: String, newPassword: String) {
+        val currentHash = PasswordHasher.hash(tenant.passwordSalt, currentPassword)
+        check(currentHash == tenant.passwordHash) { "Current password is incorrect" }
+
+        val newSalt = PasswordHasher.generateSalt()
+        val newHash = PasswordHasher.hash(newSalt, newPassword)
+        tenantsCollection.document(tenant.id)
+            .update(mapOf("passwordHash" to newHash, "passwordSalt" to newSalt))
+            .await()
+    }
 }

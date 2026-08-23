@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -30,11 +31,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maskan.mobileapp.data.model.BillType
 import com.maskan.mobileapp.data.model.Frequency
+import com.maskan.mobileapp.data.model.PaidBy
 import com.maskan.mobileapp.data.repository.NewBillInput
 import com.maskan.mobileapp.data.util.PeriodFormatter
 import com.maskan.mobileapp.data.util.toDate
@@ -65,6 +69,7 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
     var type by remember { mutableStateOf(BillType.RENT) }
     var typeMenuExpanded by remember { mutableStateOf(false) }
     var frequency by remember { mutableStateOf(type.defaultFrequency) }
+    var paidBy by remember { mutableStateOf(PaidBy.TENANT) }
     var amount by remember { mutableStateOf("") }
     var referenceDate by remember { mutableStateOf(LocalDate.now()) }
     var dueDate by remember { mutableStateOf(LocalDate.now()) }
@@ -77,7 +82,7 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
     val period = remember(referenceDate, frequency) { PeriodFormatter.periodFor(referenceDate, frequency) }
     val isValid = selectedPropertyId != null && (amount.toDoubleOrNull() ?: 0.0) > 0
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background)) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -101,6 +106,7 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
                                     propertyId = propertyId,
                                     type = type,
                                     frequency = frequency,
+                                    paidBy = paidBy,
                                     amount = amount.toDoubleOrNull() ?: 0.0,
                                     referenceDate = referenceDate,
                                     dueDate = dueDate.toDate(),
@@ -159,6 +165,7 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
                                 onClick = {
                                     type = billType
                                     frequency = billType.defaultFrequency
+                                    if (billType == BillType.RENT) paidBy = PaidBy.TENANT
                                     typeMenuExpanded = false
                                 },
                             )
@@ -171,6 +178,24 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
                     onSelect = { frequency = it },
                     label = { it.label },
                 )
+                Column {
+                    Text(text = "Paid By", style = MaskanType.fieldLabel, color = colors.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
+                    val paidByLocked = type == BillType.RENT
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PaidBy.entries.forEach { option ->
+                            val selected = option == paidBy
+                            Box(
+                                modifier = Modifier
+                                    .background(if (selected) colors.gradientStart else colors.fieldBackground, RoundedCornerShape(50))
+                                    .let { if (!paidByLocked) it.clickable { paidBy = option } else it }
+                                    .alpha(if (paidByLocked && !selected) 0.4f else 1f)
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                            ) {
+                                Text(text = option.label, style = MaskanType.secondary, color = if (selected) Color.White else colors.textSecondary)
+                            }
+                        }
+                    }
+                }
                 AppTextField(value = amount, onValueChange = { amount = it.filter { c -> c.isDigit() || c == '.' } }, label = "Amount", keyboardType = KeyboardType.Number)
             }
 

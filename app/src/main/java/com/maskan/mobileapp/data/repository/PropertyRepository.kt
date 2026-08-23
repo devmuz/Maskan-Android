@@ -93,9 +93,37 @@ class PropertyRepository(
     suspend fun isCodeAvailable(code: String): Boolean =
         !codesCollection.document(code).get().await().exists()
 
-    /** One-off fetch (tenant app doesn't have a live property listener yet — see 09-tenant-app.md). */
+    /** One-off fetch. */
     suspend fun getById(propertyId: String): Property? =
         propertiesCollection.document(propertyId).get().await().toObject(Property::class.java)
+
+    /**
+     * Fallback lookup for Flutter-era tenant docs that predate
+     * `Tenant.propertyDocumentId` (09-tenant-app.md) — prefer reading the
+     * property doc ID directly off the tenant when present.
+     */
+    suspend fun findByPropertyIdCode(propertyIdCode: String): Property? =
+        propertiesCollection.whereEqualTo("propertyIdCode", propertyIdCode.uppercase())
+            .limit(1)
+            .get()
+            .await()
+            .toObjects(Property::class.java)
+            .firstOrNull()
+
+    /**
+     * Ad-hoc live listener for the tenant app (no shared session-scoped
+     * service exists there — see 09-tenant-app.md), so the tenant's property
+     * card reflects photo/occupied changes without a manual refresh. Caller
+     * manages its own collection lifecycle.
+     */
+    fun propertyDocFlow(propertyId: String) = callbackFlow {
+        val registration = propertiesCollection.document(propertyId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                trySend(snapshot?.toObject(Property::class.java))
+            }
+        awaitClose { registration.remove() }
+    }
 
     /**
      * Creates one `properties` doc per flat + reserves each code in

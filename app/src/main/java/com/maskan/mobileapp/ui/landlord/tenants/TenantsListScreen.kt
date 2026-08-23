@@ -10,10 +10,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
@@ -21,7 +19,9 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,6 +32,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maskan.mobileapp.data.model.Property
@@ -66,9 +67,16 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
     var tenantForRemoval by remember { mutableStateOf<Tenant?>(null) }
     var removalError by remember { mutableStateOf<String?>(null) }
 
-    Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
+    Scaffold(
+        containerColor = colors.background,
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddClick, containerColor = colors.gradientStart, contentColor = Color.White) {
+                Icon(Icons.Filled.Add, contentDescription = "Assign Tenant")
+            }
+        },
+    ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(innerPadding).background(colors.background),
             contentPadding = PaddingValues(horizontal = MaskanDimens.screenHPadding, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.itemSpacing),
         ) {
@@ -98,7 +106,7 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
                 items(filtered, key = { it.id }) { tenant ->
                     TenantRow(
                         tenant = tenant,
-                        property = propertiesById[tenant.propertyId],
+                        property = propertiesById[tenant.resolvedPropertyId],
                         dateFormat = dateFormat,
                         onClick = { onTenantClick(tenant.id) },
                         onEdit = { onTenantClick(tenant.id) },
@@ -106,18 +114,6 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
                     )
                 }
             }
-        }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 12.dp, end = MaskanDimens.screenHPadding)
-                .size(44.dp)
-                .background(colors.fieldBackground, CircleShape)
-                .clickable(onClick = onAddClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = "Assign Tenant", tint = colors.gradientStart)
         }
     }
 

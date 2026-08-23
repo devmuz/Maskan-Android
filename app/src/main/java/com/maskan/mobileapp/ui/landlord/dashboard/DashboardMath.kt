@@ -2,7 +2,7 @@ package com.maskan.mobileapp.ui.landlord.dashboard
 
 import com.maskan.mobileapp.data.model.Bill
 import com.maskan.mobileapp.data.model.BillStatus
-import com.maskan.mobileapp.data.model.BillType
+import com.maskan.mobileapp.data.model.PaidBy
 import com.maskan.mobileapp.data.model.Payment
 import com.maskan.mobileapp.data.util.toLocalDate
 import java.time.LocalDate
@@ -32,8 +32,6 @@ fun upcomingBills(bills: List<Bill>, startOfToday: LocalDate): List<Bill> {
         .sortedBy { it.dueDate }
 }
 
-fun pendingDuesTotal(bills: List<Bill>): Double = unpaidBills(bills).sumOf { it.amount }
-
 /** "Overdue" / "Due today" / "Due tomorrow" / "Due in Nd" (04-landlord-dashboard.md). */
 fun dueStatusLabel(bill: Bill, startOfToday: LocalDate): String {
     val dueDate = bill.dueDate?.toLocalDate() ?: return ""
@@ -49,11 +47,15 @@ fun dueStatusLabel(bill: Bill, startOfToday: LocalDate): String {
 data class MonthBucket(val label: String, val collected: Double, val expense: Double)
 
 /**
- * Collected = sum of rent payments whose paidDate falls in the month.
- * Expense = sum of non-rent bill amounts whose dueDate falls in the month
- * (billed, not paid — a bill due in June but paid in July still counts as
- * June's expense). Bucketing uses calendar month+year equality
- * (04-landlord-dashboard.md).
+ * Collected = sum of payments whose paidDate falls in the month and whose
+ * linked bill has `paidBy` absent/"tenant" — a payment whose bill can't be
+ * found is excluded entirely, never defaulted to tenant-paid.
+ * Expense = sum of bill amounts (billed, not paid — a bill due in June but
+ * paid in July still counts as June's expense) with `paidBy == "landlord"`
+ * whose dueDate falls in the month. Classifying by bill `type` alone (rent
+ * vs. non-rent) is wrong and has previously miscategorized non-rent
+ * tenant-paid bills as expenses — `paidBy` is the only correct signal
+ * (04-landlord-dashboard.md). Bucketing uses calendar month+year equality.
  */
 fun chartBuckets(bills: List<Bill>, payments: List<Payment>, referenceMonth: YearMonth = YearMonth.now()): List<MonthBucket> {
     val months = (5 downTo 0).map { referenceMonth.minusMonths(it.toLong()) }
@@ -63,15 +65,15 @@ fun chartBuckets(bills: List<Bill>, payments: List<Payment>, referenceMonth: Yea
         val collected = payments
             .filter { payment ->
                 val paidMonth = payment.paidDate?.toLocalDate()?.let { YearMonth.from(it) }
-                val bill = billsById[payment.billId]
-                paidMonth == month && bill?.type == BillType.RENT
+                val bill = billsById[payment.billId] ?: return@filter false
+                paidMonth == month && bill.paidBy == PaidBy.TENANT
             }
             .sumOf { it.amount }
 
         val expense = bills
             .filter { bill ->
                 val dueMonth = bill.dueDate?.toLocalDate()?.let { YearMonth.from(it) }
-                bill.type != BillType.RENT && dueMonth == month
+                bill.paidBy == PaidBy.LANDLORD && dueMonth == month
             }
             .sumOf { it.amount }
 

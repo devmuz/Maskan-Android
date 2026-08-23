@@ -1,6 +1,12 @@
 package com.maskan.mobileapp.ui.landlord
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.Dashboard
@@ -9,13 +15,18 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
+import com.maskan.mobileapp.ui.theme.MaskanTheme
+import com.maskan.mobileapp.ui.theme.MaskanType
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -30,15 +41,21 @@ import com.maskan.mobileapp.di.LocalAppContainer
 import com.maskan.mobileapp.ui.landlord.bills.AddBillScreen
 import com.maskan.mobileapp.ui.landlord.bills.BillDetailScreen
 import com.maskan.mobileapp.ui.landlord.bills.BillsScreen
+import com.maskan.mobileapp.ui.landlord.bills.RecordPaymentScreen
 import com.maskan.mobileapp.ui.landlord.dashboard.DashboardScreen
 import com.maskan.mobileapp.ui.landlord.properties.AddPropertyScreen
 import com.maskan.mobileapp.ui.landlord.properties.EditPropertyScreen
 import com.maskan.mobileapp.ui.landlord.properties.PropertiesScreen
 import com.maskan.mobileapp.ui.landlord.properties.PropertyDetailScreen
+import com.maskan.mobileapp.ui.landlord.requests.LandlordRequestDetailScreen
+import com.maskan.mobileapp.ui.landlord.requests.LandlordRequestsScreen
+import com.maskan.mobileapp.ui.landlord.settings.CurrencyPickerScreen
 import com.maskan.mobileapp.ui.landlord.settings.LandlordSettingsScreen
+import com.maskan.mobileapp.ui.landlord.settings.PaywallScreen
 import com.maskan.mobileapp.ui.landlord.tenants.AssignTenantScreen
 import com.maskan.mobileapp.ui.landlord.tenants.EditTenantScreen
 import com.maskan.mobileapp.ui.landlord.tenants.TenantDetailScreen
+import com.maskan.mobileapp.ui.landlord.tenants.TenantPaymentHistoryScreen
 import com.maskan.mobileapp.ui.landlord.tenants.TenantsScreen
 
 private object LandlordTab {
@@ -75,7 +92,8 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                 NavigationBar {
                     tabItems.forEach { tab ->
                         val selected = backStackEntry?.destination?.hierarchy?.any { it.route == tab.route } == true
-                        NavigationBarItem(
+                        BottomTabItem(
+                            tab = tab,
                             selected = selected,
                             onClick = {
                                 innerNavController.navigate(tab.route) {
@@ -84,8 +102,7 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label) },
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
@@ -100,9 +117,42 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
             composable(LandlordTab.DASHBOARD) {
                 DashboardScreen(
                     viewModel = viewModel,
-                    onAddProperty = { innerNavController.navigate("add_property") },
                     onAddTenant = { innerNavController.navigate("assign_tenant") },
                     onAddBill = { innerNavController.navigate("add_bill") },
+                    onRecordPayment = { innerNavController.navigate("record_payment") },
+                    onOpenRequests = { innerNavController.navigate("requests") },
+                )
+            }
+            composable("record_payment") {
+                RecordPaymentScreen(
+                    viewModel = viewModel,
+                    onDone = { innerNavController.popBackStack() },
+                    onCancel = { innerNavController.popBackStack() },
+                )
+            }
+            composable(
+                "record_payment/{propertyId}",
+                arguments = listOf(navArgument("propertyId") { type = NavType.StringType }),
+            ) { entry ->
+                RecordPaymentScreen(
+                    viewModel = viewModel,
+                    fixedPropertyId = entry.arguments?.getString("propertyId").orEmpty(),
+                    onDone = { innerNavController.popBackStack() },
+                    onCancel = { innerNavController.popBackStack() },
+                )
+            }
+            composable("requests") {
+                LandlordRequestsScreen(
+                    viewModel = viewModel,
+                    onBack = { innerNavController.popBackStack() },
+                    onRequestClick = { innerNavController.navigate("request_detail/$it") },
+                )
+            }
+            composable("request_detail/{requestId}", arguments = listOf(navArgument("requestId") { type = NavType.StringType })) { entry ->
+                LandlordRequestDetailScreen(
+                    viewModel = viewModel,
+                    requestId = entry.arguments?.getString("requestId").orEmpty(),
+                    onBack = { innerNavController.popBackStack() },
                 )
             }
             composable(LandlordTab.PROPERTIES) {
@@ -149,6 +199,18 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     tenantId = entry.arguments?.getString("tenantId").orEmpty(),
                     onBack = { innerNavController.popBackStack() },
                     onEdit = { innerNavController.navigate("edit_tenant/$it") },
+                    onViewAllPayments = { innerNavController.navigate("tenant_payment_history/$it") },
+                    onRecordPayment = { innerNavController.navigate("record_payment/$it") },
+                )
+            }
+            composable(
+                "tenant_payment_history/{tenantId}",
+                arguments = listOf(navArgument("tenantId") { type = NavType.StringType }),
+            ) { entry ->
+                TenantPaymentHistoryScreen(
+                    viewModel = viewModel,
+                    tenantId = entry.arguments?.getString("tenantId").orEmpty(),
+                    onBack = { innerNavController.popBackStack() },
                 )
             }
             composable("assign_tenant") {
@@ -190,8 +252,46 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
             }
 
             composable(LandlordTab.SETTINGS) {
-                LandlordSettingsScreen(viewModel = viewModel, onSignedOut = onSignedOut)
+                LandlordSettingsScreen(
+                    viewModel = viewModel,
+                    onOpenCurrencyPicker = { innerNavController.navigate("currency_picker") },
+                    onOpenPaywall = { innerNavController.navigate("paywall") },
+                    onSignedOut = onSignedOut,
+                )
+            }
+            composable("currency_picker") {
+                CurrencyPickerScreen(viewModel = viewModel, onBack = { innerNavController.popBackStack() })
+            }
+            composable("paywall") {
+                PaywallScreen(viewModel = viewModel, onBack = { innerNavController.popBackStack() })
             }
         }
+    }
+}
+
+/**
+ * Material3's [NavigationBarItem] indicator pill only ever wraps the icon, never the
+ * label — a spec limitation, not something the color/shape params can override. This
+ * builds the pill ourselves so it wraps icon + label together, matching the design.
+ */
+@Composable
+private fun BottomTabItem(tab: TabItem, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = MaskanTheme.colors
+    val tint = if (selected) colors.gradientStart else colors.textTertiary
+    Column(
+        modifier = modifier
+            .padding(vertical = 8.dp, horizontal = 4.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .then(if (selected) Modifier.background(colors.gradientStart.copy(alpha = 0.12f)) else Modifier)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(tab.icon, contentDescription = tab.label, tint = tint, modifier = Modifier.size(22.dp))
+        Text(text = tab.label, style = MaskanType.caption, color = tint, modifier = Modifier.padding(top = 2.dp))
     }
 }

@@ -54,15 +54,17 @@ fun StatCardGrid(cards: List<StatCardData>, modifier: Modifier = Modifier) {
 private fun StatCard(data: StatCardData, modifier: Modifier = Modifier) {
     val colors = MaskanTheme.colors
     MaskanCard(modifier = modifier) {
-        Box(
-            modifier = Modifier
-                .size(MaskanDimens.statBadgeSize)
-                .background(data.tint.copy(alpha = 0.14f), RoundedCornerShape(MaskanDimens.statBadgeCornerRadius)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(imageVector = data.icon, contentDescription = null, tint = data.tint, modifier = Modifier.size(16.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(MaskanDimens.statBadgeSize)
+                    .background(data.tint.copy(alpha = 0.14f), RoundedCornerShape(MaskanDimens.statBadgeCornerRadius)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(imageVector = data.icon, contentDescription = null, tint = data.tint, modifier = Modifier.size(16.dp))
+            }
+            Text(text = data.value, style = MaskanType.statValue, color = colors.textPrimary)
         }
-        Text(text = data.value, style = MaskanType.statValue, color = colors.textPrimary, modifier = Modifier.padding(top = 14.dp))
-        Text(text = data.label, style = MaskanType.caption, color = colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
+        Text(text = data.label, style = MaskanType.caption, color = colors.textSecondary, modifier = Modifier.padding(top = 14.dp))
     }
 }
