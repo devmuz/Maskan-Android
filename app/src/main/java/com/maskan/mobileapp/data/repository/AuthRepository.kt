@@ -2,6 +2,7 @@ package com.maskan.mobileapp.data.repository
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -32,6 +33,12 @@ class AuthRepository(
 
     suspend fun signUpLandlord(email: String, password: String) {
         auth.createUserWithEmailAndPassword(email.trim(), password).await()
+    }
+
+    /** Exchanges a Google ID token (from Credential Manager) for a Firebase session — same account for both login and sign-up, Firebase creates it on first use. */
+    suspend fun signInLandlordWithGoogle(googleIdToken: String) {
+        val credential = GoogleAuthProvider.getCredential(googleIdToken, null)
+        auth.signInWithCredential(credential).await()
     }
 
     suspend fun sendPasswordReset(email: String) {

@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -25,7 +26,9 @@ import androidx.navigation.NavHostController
 import com.maskan.mobileapp.data.prefs.UserRole
 import com.maskan.mobileapp.di.LocalAppContainer
 import com.maskan.mobileapp.ui.components.AppTextField
+import com.maskan.mobileapp.ui.components.GoogleSignInButton
 import com.maskan.mobileapp.ui.components.GradientButton
+import com.maskan.mobileapp.ui.components.OrDivider
 import com.maskan.mobileapp.ui.nav.Routes
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
@@ -35,12 +38,14 @@ import kotlinx.coroutines.launch
 @Composable
 fun LandlordLoginScreen(navController: NavHostController) {
     val container = LocalAppContainer.current
+    val context = LocalContext.current
     val colors = MaskanTheme.colors
     val scope = rememberCoroutineScope()
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var isGoogleLoading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var showForgotPassword by remember { mutableStateOf(false) }
 
@@ -65,7 +70,7 @@ fun LandlordLoginScreen(navController: NavHostController) {
             text = "Log In",
             isLoading = isLoading,
             loadingText = "Logging In…",
-            enabled = isValid,
+            enabled = isValid && !isGoogleLoading,
             onClick = {
                 error = null
                 isLoading = true
@@ -78,6 +83,29 @@ fun LandlordLoginScreen(navController: NavHostController) {
                         error = t.message ?: "Something went wrong. Please try again."
                     } finally {
                         isLoading = false
+                    }
+                }
+            },
+        )
+
+        OrDivider()
+
+        GoogleSignInButton(
+            enabled = !isLoading,
+            isLoading = isGoogleLoading,
+            onClick = {
+                error = null
+                isGoogleLoading = true
+                scope.launch {
+                    try {
+                        val idToken = requestGoogleIdToken(context)
+                        container.authRepository.signInLandlordWithGoogle(idToken)
+                        container.rolePreferences.setRole(UserRole.LANDLORD)
+                        navController.navigate(Routes.LANDLORD_SHELL) { popUpTo(0) { inclusive = true } }
+                    } catch (t: Throwable) {
+                        error = t.message ?: "Couldn't sign in with Google. Please try again."
+                    } finally {
+                        isGoogleLoading = false
                     }
                 }
             },

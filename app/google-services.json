@@ -7,17 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1069668978695:android:8d87707d62501079d35aa2",
+        "mobilesdk_app_id": "1:1069668978695:android:1b39e10564bcaa0ad35aa2",
         "android_client_info": {
-          "package_name": "com.maskan.app"
+          "package_name": "com.maskan.mobileapp"
         }
       },
       "oauth_client": [
         {
-          "client_id": "1069668978695-086q0e5vtt2qk07rn8o18vtjkqk5dgmm.apps.googleusercontent.com",
+          "client_id": "1069668978695-aqkaidff76mam4i3hebq6a6ujph86b99.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.maskan.app",
+            "package_name": "com.maskan.mobileapp",
             "certificate_hash": "14b5201bd00aab2466b0152dd36ac8fa85c5022f"
           }
         },
@@ -39,46 +39,10 @@
               "client_type": 3
             },
             {
-              "client_id": "1069668978695-jta8e0gl40c2377ji31mipuodfe2tua9.apps.googleusercontent.com",
+              "client_id": "1069668978695-inb7n8lpcvq7eaqeqd4ciejtmgim4662.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.maskan.app"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:1069668978695:android:1b39e10564bcaa0ad35aa2",
-        "android_client_info": {
-          "package_name": "com.maskan.mobileapp"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "1069668978695-g313aj19iqs4cjdnh4seu9nigeb0jota.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyBUv5Pdegf8GVNVFX7Wx2q5_BBDA01pDDU"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "1069668978695-g313aj19iqs4cjdnh4seu9nigeb0jota.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "1069668978695-jta8e0gl40c2377ji31mipuodfe2tua9.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.maskan.app"
+                "bundle_id": "com.maskan.mobileapp"
               }
             }
           ]
