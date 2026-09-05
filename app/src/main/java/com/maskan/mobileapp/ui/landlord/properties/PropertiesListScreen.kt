@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -41,6 +42,7 @@ import com.maskan.mobileapp.ui.components.MaskanCard
 import com.maskan.mobileapp.ui.components.SegmentedControl
 import com.maskan.mobileapp.ui.components.StatusBadge
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
+import com.maskan.mobileapp.ui.landlord.LocalLandlordContentBottomInset
 import com.maskan.mobileapp.ui.theme.MaskanDimens
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
@@ -95,10 +97,19 @@ fun PropertiesScreen(
                 isRefreshing = false
             }
         },
-        modifier = Modifier.fillMaxSize().background(colors.background),
+        modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding(),
     ) {
         if (properties.isEmpty() && archivedGroups.isEmpty() && filter == PropertyFilter.ACTIVE) {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = MaskanDimens.screenHPadding,
+                    end = MaskanDimens.screenHPadding,
+                    top = 16.dp,
+                    bottom = LocalLandlordContentBottomInset.current,
+                ),
+                verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
+            ) {
                 item { PropertiesHeader(gatedAddClick) }
                 item {
                     EmptyState(
@@ -111,7 +122,12 @@ fun PropertiesScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = MaskanDimens.screenHPadding, vertical = 16.dp),
+                contentPadding = PaddingValues(
+                    start = MaskanDimens.screenHPadding,
+                    end = MaskanDimens.screenHPadding,
+                    top = 16.dp,
+                    bottom = LocalLandlordContentBottomInset.current,
+                ),
                 verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
             ) {
                 item { PropertiesHeader(gatedAddClick) }
@@ -171,7 +187,7 @@ fun PropertiesScreen(
 private fun PropertiesHeader(onAddClick: () -> Unit) {
     val colors = MaskanTheme.colors
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {

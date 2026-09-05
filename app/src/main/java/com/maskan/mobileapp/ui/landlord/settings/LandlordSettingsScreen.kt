@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -54,6 +55,7 @@ import com.maskan.mobileapp.ui.components.MaskanCard
 import com.maskan.mobileapp.ui.components.SegmentedControl
 import com.maskan.mobileapp.ui.components.StatusBadge
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
+import com.maskan.mobileapp.ui.landlord.LocalLandlordContentBottomInset
 import com.maskan.mobileapp.ui.theme.MaskanDimens
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
@@ -92,9 +94,13 @@ fun LandlordSettingsScreen(
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "—"
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background)) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = MaskanDimens.screenHPadding, vertical = 24.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = MaskanDimens.screenHPadding, vertical = 24.dp)
+                .padding(bottom = LocalLandlordContentBottomInset.current),
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
             Text(text = "Settings", style = MaskanType.screenTitle, color = colors.textPrimary)

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -21,7 +22,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,6 +41,7 @@ import com.maskan.mobileapp.ui.components.EmptyState
 import com.maskan.mobileapp.ui.components.MaskanCard
 import com.maskan.mobileapp.ui.components.SegmentedControl
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
+import com.maskan.mobileapp.ui.landlord.LocalLandlordContentBottomInset
 import com.maskan.mobileapp.ui.theme.MaskanDimens
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
@@ -68,17 +69,15 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
     var tenantForRemoval by remember { mutableStateOf<Tenant?>(null) }
     var removalError by remember { mutableStateOf<String?>(null) }
 
-    Scaffold(
-        containerColor = colors.background,
-        floatingActionButton = {
-            FloatingActionButton(onClick = onAddClick, containerColor = colors.gradientStart, contentColor = Color.White) {
-                Icon(Icons.Filled.Add, contentDescription = "Assign Tenant")
-            }
-        },
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).background(colors.background),
-            contentPadding = PaddingValues(horizontal = MaskanDimens.screenHPadding, vertical = 16.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = MaskanDimens.screenHPadding,
+                end = MaskanDimens.screenHPadding,
+                top = 16.dp,
+                bottom = LocalLandlordContentBottomInset.current,
+            ),
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.itemSpacing),
         ) {
             item { Text(text = "Tenants", style = MaskanType.screenTitle, color = colors.textPrimary) }
@@ -115,6 +114,18 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
                     )
                 }
             }
+        }
+
+        FloatingActionButton(
+            onClick = onAddClick,
+            containerColor = colors.gradientStart,
+            contentColor = Color.White,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp)
+                .padding(bottom = LocalLandlordContentBottomInset.current),
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = "Assign Tenant")
         }
     }
 

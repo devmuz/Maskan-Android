@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,6 +54,7 @@ import com.maskan.mobileapp.ui.components.MaskanCard
 import com.maskan.mobileapp.ui.components.StatCardData
 import com.maskan.mobileapp.ui.components.StatCardGrid
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
+import com.maskan.mobileapp.ui.landlord.LocalLandlordContentBottomInset
 import com.maskan.mobileapp.ui.landlord.billTypeIcon
 import com.maskan.mobileapp.ui.theme.MaskanDimens
 import com.maskan.mobileapp.ui.theme.MaskanTheme
@@ -104,11 +106,16 @@ fun DashboardScreen(
                 isRefreshing = false
             }
         },
-        modifier = Modifier.fillMaxSize().background(colors.background),
+        modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding(),
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = MaskanDimens.screenHPadding, vertical = 16.dp),
+            contentPadding = PaddingValues(
+                start = MaskanDimens.screenHPadding,
+                end = MaskanDimens.screenHPadding,
+                top = 16.dp,
+                bottom = LocalLandlordContentBottomInset.current,
+            ),
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
             item {

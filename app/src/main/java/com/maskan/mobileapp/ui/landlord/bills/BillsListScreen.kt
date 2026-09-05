@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,7 +20,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,6 +41,7 @@ import com.maskan.mobileapp.ui.components.MaskanCard
 import com.maskan.mobileapp.ui.components.SegmentedControl
 import com.maskan.mobileapp.ui.components.StatusBadge
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
+import com.maskan.mobileapp.ui.landlord.LocalLandlordContentBottomInset
 import com.maskan.mobileapp.ui.landlord.billTypeIcon
 import com.maskan.mobileapp.ui.theme.MaskanDimens
 import com.maskan.mobileapp.ui.theme.MaskanTheme
@@ -82,17 +83,15 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
             .sortedBy { (propertyId, _) -> propertiesById[propertyId]?.displayTitle ?: "" }
     }
 
-    Scaffold(
-        containerColor = colors.background,
-        floatingActionButton = {
-            FloatingActionButton(onClick = onAddClick, containerColor = colors.gradientStart, contentColor = Color.White) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Bill")
-            }
-        },
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).background(colors.background),
-            contentPadding = PaddingValues(horizontal = MaskanDimens.screenHPadding, vertical = 16.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = MaskanDimens.screenHPadding,
+                end = MaskanDimens.screenHPadding,
+                top = 16.dp,
+                bottom = LocalLandlordContentBottomInset.current,
+            ),
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.itemSpacing),
         ) {
             item { Text(text = "Bills", style = MaskanType.screenTitle, color = colors.textPrimary) }
@@ -141,6 +140,18 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
                     }
                 }
             }
+        }
+
+        FloatingActionButton(
+            onClick = onAddClick,
+            containerColor = colors.gradientStart,
+            contentColor = Color.White,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp)
+                .padding(bottom = LocalLandlordContentBottomInset.current),
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = "Add Bill")
         }
     }
 }

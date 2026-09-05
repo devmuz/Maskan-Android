@@ -22,4 +22,12 @@ object MaskanDimens {
     val statBadgeCornerRadius = 10.dp
     val emptyStateBadgeSize = 88.dp
     val emptyStateIconSize = 34.dp
+
+    // Floating tab bar (landlord shell): height of the pill itself, its margin
+    // from the screen edges/system nav bar, and how much bottom clearance scrollable
+    // tab-root content needs to reserve so its last item can clear the floating pill.
+    val glassBarHeight = 68.dp
+    val glassBarHMargin = 12.dp
+    val glassBarBottomMargin = 12.dp
+    val glassBarContentClearance = glassBarHeight + glassBarBottomMargin + 16.dp
 }

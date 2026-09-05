@@ -1,11 +1,22 @@
 package com.maskan.mobileapp.ui.landlord
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apartment
@@ -14,21 +25,25 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.maskan.mobileapp.ui.theme.MaskanDimens
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -71,6 +86,8 @@ private object LandlordTab {
 
 private data class TabItem(val route: String, val label: String, val icon: ImageVector)
 
+private val TabBarShape = RoundedCornerShape(32.dp)
+
 private val tabItems = listOf(
     TabItem(LandlordTab.DASHBOARD, "Dashboard", Icons.Filled.Dashboard),
     TabItem(LandlordTab.PROPERTIES, "Properties", Icons.Filled.Apartment),
@@ -78,6 +95,13 @@ private val tabItems = listOf(
     TabItem(LandlordTab.BILLS, "Bills", Icons.Filled.Description),
     TabItem(LandlordTab.SETTINGS, "Settings", Icons.Filled.Person),
 )
+
+/**
+ * Extra bottom clearance tab-root screens (Dashboard/Properties/Tenants/Bills/Settings)
+ * must reserve in their scrollable content so the last item can clear the floating
+ * tab bar. 0.dp on any screen where the bar isn't shown (detail/add/edit routes).
+ */
+val LocalLandlordContentBottomInset = compositionLocalOf { 0.dp }
 
 @Composable
 fun LandlordShellScreen(onSignedOut: () -> Unit) {
@@ -89,34 +113,16 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = tabItems.any { it.route == currentRoute }
 
-    Scaffold(
-        bottomBar = {
-            if (showBottomBar) {
-                NavigationBar {
-                    tabItems.forEach { tab ->
-                        val selected = backStackEntry?.destination?.hierarchy?.any { it.route == tab.route } == true
-                        BottomTabItem(
-                            tab = tab,
-                            selected = selected,
-                            onClick = {
-                                innerNavController.navigate(tab.route) {
-                                    popUpTo(innerNavController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-            }
-        },
-    ) { innerPadding ->
-        NavHost(
-            navController = innerNavController,
-            startDestination = LandlordTab.DASHBOARD,
-            modifier = Modifier.padding(innerPadding),
-        ) {
+    val navBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val contentBottomInset = navBarInset + MaskanDimens.glassBarContentClearance
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalLandlordContentBottomInset provides if (showBottomBar) contentBottomInset else 0.dp) {
+            NavHost(
+                navController = innerNavController,
+                startDestination = LandlordTab.DASHBOARD,
+                modifier = Modifier.fillMaxSize().statusBarsPadding(),
+            ) {
             composable(LandlordTab.DASHBOARD) {
                 DashboardScreen(
                     viewModel = viewModel,
@@ -287,6 +293,54 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
             composable("paywall") {
                 PaywallScreen(viewModel = viewModel, onBack = { innerNavController.popBackStack() })
             }
+            }
+        }
+
+        if (showBottomBar) {
+            FloatingTabBar(
+                backStackEntry = backStackEntry,
+                onTabClick = { route ->
+                    innerNavController.navigate(route) {
+                        popUpTo(innerNavController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+    }
+}
+
+@Composable
+private fun FloatingTabBar(
+    backStackEntry: NavBackStackEntry?,
+    onTabClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaskanTheme.colors
+    Row(
+        modifier = modifier
+            .padding(horizontal = MaskanDimens.glassBarHMargin)
+            .navigationBarsPadding()
+            .padding(bottom = MaskanDimens.glassBarBottomMargin)
+            .fillMaxWidth()
+            .height(MaskanDimens.glassBarHeight)
+            .shadow(elevation = 12.dp, shape = TabBarShape, ambientColor = colors.shadowColor, spotColor = colors.shadowColor)
+            .clip(TabBarShape)
+            .background(colors.surface)
+            .border(width = 1.dp, color = colors.border, shape = TabBarShape)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        tabItems.forEach { tab ->
+            val selected = backStackEntry?.destination?.hierarchy?.any { it.route == tab.route } == true
+            BottomTabItem(
+                tab = tab,
+                selected = selected,
+                onClick = { onTabClick(tab.route) },
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
@@ -302,21 +356,21 @@ private fun BottomTabItem(tab: TabItem, selected: Boolean, onClick: () -> Unit, 
     val tint = if (selected) colors.gradientStart else colors.textTertiary
     Column(
         modifier = modifier
-            .padding(vertical = 8.dp, horizontal = 4.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .then(if (selected) Modifier.background(colors.gradientStart.copy(alpha = 0.12f)) else Modifier)
+            .padding(vertical = 8.dp)
+            .clip(TabBarShape)
+            .then(if (selected) Modifier.background(colors.gradientStart.copy(alpha = 0.16f)) else Modifier)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
             )
-            .padding(vertical = 8.dp, horizontal = 2.dp),
+            .padding(vertical = 8.dp, horizontal = 1.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(tab.icon, contentDescription = tab.label, tint = tint, modifier = Modifier.size(22.dp))
         Text(
             text = tab.label,
-            style = MaskanType.caption,
+            style = MaskanType.caption.copy(fontSize = 10.sp, lineHeight = 12.sp),
             color = tint,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
