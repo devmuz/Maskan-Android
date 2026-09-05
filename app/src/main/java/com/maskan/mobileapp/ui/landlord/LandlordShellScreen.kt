@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
@@ -44,6 +45,8 @@ import com.maskan.mobileapp.ui.landlord.bills.BillsScreen
 import com.maskan.mobileapp.ui.landlord.bills.RecordPaymentScreen
 import com.maskan.mobileapp.ui.landlord.dashboard.DashboardScreen
 import com.maskan.mobileapp.ui.landlord.properties.AddPropertyScreen
+import com.maskan.mobileapp.ui.landlord.properties.ArchivedPropertyDetailScreen
+import com.maskan.mobileapp.ui.landlord.properties.BuildingDetailScreen
 import com.maskan.mobileapp.ui.landlord.properties.EditPropertyScreen
 import com.maskan.mobileapp.ui.landlord.properties.PropertiesScreen
 import com.maskan.mobileapp.ui.landlord.properties.PropertyDetailScreen
@@ -159,7 +162,10 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                 PropertiesScreen(
                     viewModel = viewModel,
                     onPropertyClick = { innerNavController.navigate("property_detail/$it") },
+                    onArchivedPropertyClick = { innerNavController.navigate("archived_property_detail/$it") },
+                    onBuildingClick = { innerNavController.navigate("building_detail/$it") },
                     onAddClick = { innerNavController.navigate("add_property") },
+                    onUpgradeRequired = { innerNavController.navigate("paywall") },
                 )
             }
             composable("property_detail/{propertyId}", arguments = listOf(navArgument("propertyId") { type = NavType.StringType })) { entry ->
@@ -168,6 +174,22 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     propertyId = entry.arguments?.getString("propertyId").orEmpty(),
                     onBack = { innerNavController.popBackStack() },
                     onEdit = { innerNavController.navigate("edit_property/$it") },
+                )
+            }
+            composable("archived_property_detail/{propertyId}", arguments = listOf(navArgument("propertyId") { type = NavType.StringType })) { entry ->
+                ArchivedPropertyDetailScreen(
+                    viewModel = viewModel,
+                    propertyId = entry.arguments?.getString("propertyId").orEmpty(),
+                    onBack = { innerNavController.popBackStack() },
+                )
+            }
+            composable("building_detail/{propertyId}", arguments = listOf(navArgument("propertyId") { type = NavType.StringType })) { entry ->
+                BuildingDetailScreen(
+                    viewModel = viewModel,
+                    propertyId = entry.arguments?.getString("propertyId").orEmpty(),
+                    onBack = { innerNavController.popBackStack() },
+                    onFlatClick = { innerNavController.navigate("property_detail/$it") },
+                    onUpgradeRequired = { innerNavController.navigate("paywall") },
                 )
             }
             composable("add_property") {
@@ -288,10 +310,18 @@ private fun BottomTabItem(tab: TabItem, selected: Boolean, onClick: () -> Unit, 
                 indication = null,
                 onClick = onClick,
             )
-            .padding(vertical = 8.dp, horizontal = 4.dp),
+            .padding(vertical = 8.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(tab.icon, contentDescription = tab.label, tint = tint, modifier = Modifier.size(22.dp))
-        Text(text = tab.label, style = MaskanType.caption, color = tint, modifier = Modifier.padding(top = 2.dp))
+        Text(
+            text = tab.label,
+            style = MaskanType.caption,
+            color = tint,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            softWrap = false,
+            modifier = Modifier.padding(top = 2.dp),
+        )
     }
 }

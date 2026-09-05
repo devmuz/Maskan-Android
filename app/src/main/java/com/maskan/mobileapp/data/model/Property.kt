@@ -37,6 +37,10 @@ data class Property(
      * shipped — callers should fall back to `"USD"`.
      */
     val currency: String? = null,
+    /** Soft-delete flag (feature-properties.md) — `true` means archived, never hard-deleted. */
+    val isDeleted: Boolean? = null,
+    /** UIDs of co-owner landlords with full management access to every flat in the building. Max 7. */
+    val coOwners: List<String>? = null,
 ) {
     // @get:Exclude on every computed property below: without it, Firestore's reflection maps
     // e.g. getPropertyType() to the same default key ("propertyType") that
@@ -60,6 +64,11 @@ data class Property(
     @get:Exclude
     val displayBuildingName: String
         get() = buildingName ?: name
+
+    /** Absent `isDeleted` means active — predates the soft-delete feature. */
+    @get:Exclude
+    val isArchived: Boolean
+        get() = isDeleted == true
 }
 
 enum class PropertyType(val raw: String, val label: String, val supportsMultipleUnits: Boolean) {

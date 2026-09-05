@@ -201,10 +201,15 @@ class TenantRepository(private val firestore: FirebaseFirestore, private val fun
         batch.commit().await()
     }
 
-    /** Only an active tenant's delete also frees the property. */
+    /**
+     * Soft delete (feature-tenants.md): sets `status = "deleted"` and clears
+     * `passwordHash`, but the document is never removed — payment/bill
+     * history for the tenant's property must survive. Only an active
+     * tenant's delete also frees the property.
+     */
     suspend fun deleteTenant(tenant: Tenant) {
         val batch = firestore.batch()
-        batch.delete(tenantsCollection.document(tenant.id))
+        batch.update(tenantsCollection.document(tenant.id), mapOf("status" to "deleted", "passwordHash" to ""))
         if (tenant.isActive) {
             batch.update(propertiesCollection.document(tenant.resolvedPropertyId), "occupied", false)
         }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,7 +53,7 @@ fun AddRequestScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, onCa
 
     val isValid = title.isNotBlank()
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp).padding(top = 12.dp, bottom = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,

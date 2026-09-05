@@ -74,6 +74,24 @@ class LandlordRepository(private val firestore: FirebaseFirestore) {
     }
 
     /**
+     * Co-owner lookup by email (feature-properties.md's `addCoOwner` flow).
+     * Relies on the `landlords` collection's open read rule (any authenticated
+     * user can read, not just self) — see feature-properties.md's "Co-owner
+     * lookup fix". The prospective co-owner must already have a Maskan account.
+     */
+    /** One-off fetch — used to resolve a co-owner UID to a display email (feature-properties.md). */
+    suspend fun getById(landlordId: String): Landlord? =
+        landlordsCollection.document(landlordId).get().await().toObject(Landlord::class.java)
+
+    suspend fun findByEmail(email: String): Landlord? =
+        landlordsCollection.whereEqualTo("email", email.trim())
+            .limit(1)
+            .get()
+            .await()
+            .toObjects(Landlord::class.java)
+            .firstOrNull()
+
+    /**
      * Anchors the new Pro expiry to Firestore's **server** clock, not the
      * device clock (a locally-altered device date/time must not be able to
      * fake a longer subscription) — write a serverTimestamp field, re-read it

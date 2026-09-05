@@ -43,6 +43,10 @@ data class Tenant(
     val isActive: Boolean
         get() = status == TenantStatus.ACTIVE
 
+    @get:Exclude
+    val isDeleted: Boolean
+        get() = status == TenantStatus.DELETED
+
     /**
      * The `properties` doc ID to actually look up or reference. iOS-created
      * tenant docs put the property's human-readable code (not the Firestore
@@ -60,4 +64,5 @@ data class Tenant(
 enum class TenantStatus(val raw: String) {
     ACTIVE("active"),
     OLD("old"),
+    DELETED("deleted"),
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -56,7 +57,7 @@ fun PaywallScreen(viewModel: LandlordViewModel, onBack: () -> Unit) {
     val products by viewModel.purchaseRepository.products.collectAsStateWithLifecycle()
     var selectedProductId by remember { mutableStateOf(SubscriptionProducts.YEARLY) }
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
         Row(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
             IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
         }

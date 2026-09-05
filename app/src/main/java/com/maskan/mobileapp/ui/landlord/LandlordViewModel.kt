@@ -24,6 +24,7 @@ class LandlordViewModel(private val container: AppContainer) : ViewModel() {
         get() = container.authRepository.currentUser?.uid.orEmpty()
 
     val properties get() = container.propertyRepository.properties
+    val archivedProperties get() = container.propertyRepository.archivedProperties
     val tenants get() = container.tenantRepository.tenants
     val bills get() = container.billingRepository.bills
     val payments get() = container.billingRepository.payments

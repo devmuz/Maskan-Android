@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -87,7 +88,7 @@ fun RecordPaymentScreen(viewModel: LandlordViewModel, fixedPropertyId: String? =
 
     val isValid = selectedPropertyId != null && (amount.toDoubleOrNull() ?: 0.0) > 0
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
         Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp)) {
             Box(
                 modifier = Modifier
@@ -216,12 +217,16 @@ fun RecordPaymentScreen(viewModel: LandlordViewModel, fixedPropertyId: String? =
             modifier = Modifier.padding(horizontal = MaskanDimens.screenHPadding).padding(bottom = 24.dp),
             onClick = {
                 val propertyId = selectedPropertyId ?: return@GradientButton
+                // Must carry the property's primary owner UID, not the caller's — co-owners
+                // record payments too, and the security rule requires landlordId to match the
+                // property owner (feature-bills.md).
+                val ownerId = properties.find { it.id == propertyId }?.landlordId ?: viewModel.landlordUid
                 isSaving = true
                 error = null
                 scope.launch {
                     try {
                         viewModel.billingRepository.recordPaymentForBillType(
-                            viewModel.landlordUid,
+                            ownerId,
                             propertyId,
                             billType,
                             amount.toDoubleOrNull() ?: 0.0,

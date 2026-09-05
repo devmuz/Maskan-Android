@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -111,7 +112,7 @@ fun TenantDetailScreen(
     val propertyPayments = payments.filter { it.propertyId == property.id }.sortedByDescending { it.paidDate }
     val billsById = remember(bills) { bills.associateBy { it.id } }
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
         Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
             Box(
                 modifier = Modifier
@@ -336,7 +337,7 @@ fun TenantDetailScreen(
                     showAdjustAmount = false
                     if (amount != null) {
                         scope.launch {
-                            viewModel.billingRepository.setPendingAmount(viewModel.landlordUid, property.id, amount, currentBill?.dueDate ?: Date())
+                            viewModel.billingRepository.setPendingAmount(property.landlordId, property.id, amount, currentBill?.dueDate ?: Date())
                         }
                     }
                 }) { Text("Save") }

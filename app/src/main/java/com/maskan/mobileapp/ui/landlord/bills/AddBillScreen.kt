@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -82,7 +83,7 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
     val period = remember(referenceDate, frequency) { PeriodFormatter.periodFor(referenceDate, frequency) }
     val isValid = selectedPropertyId != null && (amount.toDoubleOrNull() ?: 0.0) > 0
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -96,12 +97,16 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
                 color = if (isValid) colors.gradientStart else colors.textTertiary,
                 modifier = Modifier.clickable(enabled = isValid && !isSaving) {
                     val propertyId = selectedPropertyId ?: return@clickable
+                    // Bills must carry the property's primary owner UID, not the caller's —
+                    // co-owners write bills too, and the security rule requires landlordId to
+                    // match the property owner (feature-bills.md).
+                    val ownerId = properties.find { it.id == propertyId }?.landlordId ?: viewModel.landlordUid
                     isSaving = true
                     error = null
                     scope.launch {
                         try {
                             viewModel.billingRepository.addBill(
-                                viewModel.landlordUid,
+                                ownerId,
                                 NewBillInput(
                                     propertyId = propertyId,
                                     type = type,

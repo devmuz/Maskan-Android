@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -68,7 +69,7 @@ fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBac
         return
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -161,7 +162,7 @@ fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBac
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Delete this property?") },
-            text = { Text("This permanently removes the property and frees its Property ID for reuse. Bills, payments, and old tenant history are kept.") },
+            text = { Text("This moves the property to Old — it disappears from your active list, and its Property ID can never be reused. Bills, payments, and tenant history are kept.") },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false

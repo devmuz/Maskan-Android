@@ -60,7 +60,8 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
 
     var filter by remember { mutableStateOf(TenantFilter.ACTIVE) }
     val filtered = remember(tenants, filter) {
-        tenants.filter { if (filter == TenantFilter.ACTIVE) it.isActive else !it.isActive }
+        // Soft-deleted tenants are excluded from both tabs — deleted != old (feature-tenants.md).
+        tenants.filter { !it.isDeleted && if (filter == TenantFilter.ACTIVE) it.isActive else !it.isActive }
     }
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
 
@@ -126,7 +127,7 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
                     if (tenant.isActive) {
                         "${tenant.name} will no longer be able to log in, and ${tenant.propertyIdCode} will be marked vacant."
                     } else {
-                        "${tenant.name}'s record and history reference will be permanently removed."
+                        "${tenant.name} will be removed from your tenant lists. Payment history is kept."
                     },
                 )
             },

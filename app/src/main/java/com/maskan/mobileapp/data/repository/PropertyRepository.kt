@@ -13,11 +13,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
+
+/** Building-level co-ownership cap (feature-properties.md / feature-iap.md). */
+const val MAX_CO_OWNERS = 7
+
+/** Free-tier co-owner limit per building — Pro allows up to [MAX_CO_OWNERS] (feature-iap.md). */
+const val FREE_CO_OWNER_LIMIT = 1
 
 data class NewFlatInput(
     val unitName: String,
@@ -54,40 +61,64 @@ class PropertyRepository(
     private val propertiesCollection = firestore.collection("properties")
     private val codesCollection = firestore.collection("propertyIdCodes")
 
+    /** Active (non-deleted) properties owned or co-owned by this landlord. */
     private val _properties = MutableStateFlow<List<Property>>(emptyList())
     val properties: StateFlow<List<Property>> = _properties
+
+    /** Soft-deleted (`isDeleted == true`) properties — same source listener as [properties] (feature-properties.md). */
+    private val _archivedProperties = MutableStateFlow<List<Property>>(emptyList())
+    val archivedProperties: StateFlow<List<Property>> = _archivedProperties
 
     private var listenerJob: Job? = null
 
     fun startListening(scope: CoroutineScope, landlordId: String) {
         listenerJob?.cancel()
-        listenerJob = propertyFlow(landlordId).onEach { _properties.value = it }.launchIn(scope)
+        listenerJob = propertyFlow(landlordId).onEach { list ->
+            _properties.value = list.filterNot { it.isArchived }
+            _archivedProperties.value = list.filter { it.isArchived }
+        }.launchIn(scope)
     }
 
     fun stopListening() {
         listenerJob?.cancel()
         listenerJob = null
         _properties.value = emptyList()
+        _archivedProperties.value = emptyList()
     }
 
-    private fun propertyFlow(landlordId: String) = callbackFlow {
+    /** Merges owner + co-owner matches, deduped by doc id — mirrors TenantRepository's dual-query pattern. */
+    private fun propertyFlow(landlordId: String) = combine(
+        ownedPropertyFlow(landlordId),
+        coOwnedPropertyFlow(landlordId),
+    ) { owned, coOwned -> (owned + coOwned).distinctBy { it.id } }
+
+    private fun ownedPropertyFlow(landlordId: String) = callbackFlow {
         val registration = propertiesCollection
             .whereEqualTo("landlordId", landlordId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) return@addSnapshotListener
-                val list = snapshot?.toObjects(Property::class.java).orEmpty()
-                trySend(list)
+                trySend(snapshot?.toObjects(Property::class.java).orEmpty())
+            }
+        awaitClose { registration.remove() }
+    }
+
+    private fun coOwnedPropertyFlow(landlordId: String) = callbackFlow {
+        val registration = propertiesCollection
+            .whereArrayContains("coOwners", landlordId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                trySend(snapshot?.toObjects(Property::class.java).orEmpty())
             }
         awaitClose { registration.remove() }
     }
 
     /** Pull-to-refresh: force a server read, bypassing cache; listener stays attached. */
     suspend fun refresh(landlordId: String) {
-        val snapshot = propertiesCollection
-            .whereEqualTo("landlordId", landlordId)
-            .get(Source.SERVER)
-            .await()
-        _properties.value = snapshot.toObjects(Property::class.java)
+        val owned = propertiesCollection.whereEqualTo("landlordId", landlordId).get(Source.SERVER).await()
+        val coOwned = propertiesCollection.whereArrayContains("coOwners", landlordId).get(Source.SERVER).await()
+        val list = (owned.toObjects(Property::class.java) + coOwned.toObjects(Property::class.java)).distinctBy { it.id }
+        _properties.value = list.filterNot { it.isArchived }
+        _archivedProperties.value = list.filter { it.isArchived }
     }
 
     suspend fun isCodeAvailable(code: String): Boolean =
@@ -192,12 +223,43 @@ class PropertyRepository(
         batch.commit().await()
     }
 
-    /** Deletion is blocked entirely if the property is currently occupied. */
+    /**
+     * Soft delete (feature-properties.md): properties are never hard-deleted.
+     * Sets `isDeleted = true` on the property doc and `retired = true` on its
+     * `propertyIdCodes` entry (the code is never reused). Bills and payments
+     * are left untouched. Blocked entirely if the property is occupied.
+     */
     suspend fun deleteProperty(property: Property) {
         check(!property.occupied) { "Occupied properties can't be deleted." }
         val batch = firestore.batch()
-        batch.delete(propertiesCollection.document(property.id))
-        batch.delete(codesCollection.document(property.propertyIdCode))
+        batch.update(propertiesCollection.document(property.id), "isDeleted", true)
+        batch.update(codesCollection.document(property.propertyIdCode), "retired", true)
+        batch.commit().await()
+    }
+
+    /**
+     * Adds a co-owner (by resolved landlord UID) across every flat sharing
+     * [siblingIds] + [property]'s building — co-owners get full management
+     * access to the whole building (feature-properties.md). [limit] is
+     * [FREE_CO_OWNER_LIMIT] or [MAX_CO_OWNERS] depending on the owner's Pro
+     * status (feature-iap.md) — the caller resolves which applies.
+     */
+    suspend fun addCoOwner(property: Property, siblingIds: List<String>, coOwnerUid: String, limit: Int = MAX_CO_OWNERS) {
+        val currentCount = property.coOwners?.size ?: 0
+        check(currentCount < limit) { "A building can have at most $limit co-owner${if (limit == 1) "" else "s"} on your current plan." }
+        val batch = firestore.batch()
+        for (id in (siblingIds + property.id).distinct()) {
+            batch.update(propertiesCollection.document(id), "coOwners", com.google.firebase.firestore.FieldValue.arrayUnion(coOwnerUid))
+        }
+        batch.commit().await()
+    }
+
+    /** Removes a co-owner across every flat sharing the building, or lets a co-owner leave. */
+    suspend fun removeCoOwner(property: Property, siblingIds: List<String>, coOwnerUid: String) {
+        val batch = firestore.batch()
+        for (id in (siblingIds + property.id).distinct()) {
+            batch.update(propertiesCollection.document(id), "coOwners", com.google.firebase.firestore.FieldValue.arrayRemove(coOwnerUid))
+        }
         batch.commit().await()
     }
 
