@@ -229,7 +229,8 @@ fun AddPropertyScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel
                                 houseTaxNumber = houseTax.ifBlank { null },
                                 waterTaxNumber = waterTax.ifBlank { null },
                             )
-                            val createdIds = viewModel.propertyRepository.addProperty(viewModel.landlordUid, input)
+                            val currencyCode = viewModel.landlord.value?.currencyCode ?: "USD"
+                            val createdIds = viewModel.propertyRepository.addProperty(viewModel.landlordUid, input, currencyCode)
                             onDone()
 
                             val uri = photoUri

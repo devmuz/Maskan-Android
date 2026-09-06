@@ -162,7 +162,7 @@ class PropertyRepository(
      * creation (02-data-models.md). Returns the created property IDs (for a
      * follow-up photo upload).
      */
-    suspend fun addProperty(landlordId: String, input: NewPropertyInput): List<String> {
+    suspend fun addProperty(landlordId: String, input: NewPropertyInput, currencyCode: String): List<String> {
         val batch = firestore.batch()
         val createdIds = mutableListOf<String>()
 
@@ -185,6 +185,7 @@ class PropertyRepository(
                 "houseTaxNumber" to input.houseTaxNumber,
                 "waterTaxNumber" to input.waterTaxNumber,
                 "photoUrl" to null,
+                "currency" to currencyCode,
             )
             batch.set(propertyRef, doc)
 

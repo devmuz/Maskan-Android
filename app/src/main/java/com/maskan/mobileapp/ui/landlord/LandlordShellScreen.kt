@@ -356,7 +356,7 @@ private fun BottomTabItem(tab: TabItem, selected: Boolean, onClick: () -> Unit, 
     val tint = if (selected) colors.gradientStart else colors.textTertiary
     Column(
         modifier = modifier
-            .padding(vertical = 8.dp)
+            .padding(vertical = 5.dp)
             .clip(TabBarShape)
             .then(if (selected) Modifier.background(colors.gradientStart.copy(alpha = 0.16f)) else Modifier)
             .clickable(
@@ -364,7 +364,7 @@ private fun BottomTabItem(tab: TabItem, selected: Boolean, onClick: () -> Unit, 
                 indication = null,
                 onClick = onClick,
             )
-            .padding(vertical = 8.dp, horizontal = 1.dp),
+            .padding(vertical = 5.dp, horizontal = 1.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(tab.icon, contentDescription = tab.label, tint = tint, modifier = Modifier.size(22.dp))
