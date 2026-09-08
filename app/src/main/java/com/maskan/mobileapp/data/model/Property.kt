@@ -37,8 +37,22 @@ data class Property(
      * shipped — callers should fall back to `"USD"`.
      */
     val currency: String? = null,
-    /** Soft-delete flag (feature-properties.md) — `true` means archived, never hard-deleted. */
-    val isDeleted: Boolean? = null,
+    /**
+     * Soft-delete flag (feature-properties.md) — `true` means archived, never
+     * hard-deleted. Explicit @PropertyName is required here (unlike plain
+     * fields elsewhere in this class): Kotlin compiles `val isDeleted` to a
+     * getter literally named `isDeleted()`, and Firestore's Android mapper
+     * applies the JavaBean `isXxx()` convention to that, stripping the "is"
+     * prefix and binding it to a Firestore field called "deleted" instead —
+     * so without this annotation, the real "isDeleted" field written by
+     * iOS/Flutter/Android is never read back, and every soft-deleted
+     * property always deserializes as active (`isDeleted == null`). Must
+     * also be `var`, not `val` — Firestore has no setter to call otherwise.
+     */
+    @get:PropertyName("isDeleted") @set:PropertyName("isDeleted")
+    var isDeleted: Boolean? = null,
+    /** Set alongside `isDeleted` when soft-deleted. */
+    val deletedAt: Date? = null,
     /** UIDs of co-owner landlords with full management access to every flat in the building. Max 7. */
     val coOwners: List<String>? = null,
 ) {
@@ -94,4 +108,8 @@ data class PropertyIdCodeEntry(
     val propertyId: String = "",
     @ServerTimestamp
     val createdAt: Date? = null,
+    /** `true` once the owning property was soft-deleted — the code is never reused. */
+    val retired: Boolean? = null,
+    /** Set alongside `retired`. */
+    val deletedAt: Date? = null,
 )

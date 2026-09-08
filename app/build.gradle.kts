@@ -13,7 +13,7 @@ android {
         applicationId = "com.maskan.mobileapp"
         minSdk = 24
         targetSdk = 37
-        versionCode = 6
+        versionCode = 7
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -56,6 +56,7 @@ dependencies {
     implementation(libs.firebase.functions)
     implementation(libs.firebase.config)
     implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.messaging)
     implementation(libs.coil.compose)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.billing.ktx)

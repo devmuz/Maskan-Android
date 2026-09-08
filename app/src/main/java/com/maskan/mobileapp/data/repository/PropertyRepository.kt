@@ -26,6 +26,29 @@ const val MAX_CO_OWNERS = 7
 /** Free-tier co-owner limit per building — Pro allows up to [MAX_CO_OWNERS] (feature-iap.md). */
 const val FREE_CO_OWNER_LIMIT = 1
 
+/** Free-tier owned-building cap (ANDROID_PROPERTIES_FEATURE_SPEC.md §8) — co-owned buildings never count against this. */
+const val FREE_PROPERTY_LIMIT = 1
+
+/**
+ * §8's lock algorithm, reproduced exactly: a non-Pro owner's oldest
+ * [FREE_PROPERTY_LIMIT] buildings (by their oldest flat's `createdAt`) stay
+ * fully usable forever; anything created after that is locked whenever the
+ * owner isn't currently Pro. A co-owner is never locked by the owner's plan
+ * — only the owner's own plan matters when *they* are viewing.
+ */
+fun isBuildingLocked(buildingKey: String, ownerLandlordId: String, viewerId: String, viewerIsPro: Boolean, allOwnedProperties: List<Property>): Boolean {
+    if (viewerIsPro || ownerLandlordId != viewerId) return false
+    val orderedKeys = allOwnedProperties
+        .filter { it.landlordId == viewerId }
+        .groupBy { it.groupKey }
+        .entries
+        .sortedBy { (_, flats) -> flats.minOf { it.createdAt?.time ?: Long.MAX_VALUE } }
+        .map { it.key }
+    if (orderedKeys.size <= FREE_PROPERTY_LIMIT) return false
+    val unlockedKeys = orderedKeys.take(FREE_PROPERTY_LIMIT)
+    return buildingKey !in unlockedKeys
+}
+
 data class NewFlatInput(
     val unitName: String,
     val monthlyRent: Double,
@@ -123,6 +146,26 @@ class PropertyRepository(
 
     suspend fun isCodeAvailable(code: String): Boolean =
         !codesCollection.document(code).get().await().exists()
+
+    /**
+     * Currency handling (ANDROID_PROPERTIES_FEATURE_SPEC.md §9): changing
+     * currency in Settings must batch-update the `currency` field on every
+     * property this landlord *primarily* owns (not co-owned ones, which
+     * keep the primary owner's currency) — otherwise tenants, who can't
+     * read the `landlords` collection, keep seeing whatever currency their
+     * property was stamped with at creation. Covers both active and
+     * archived properties. Chunked at 400 writes per batch (Firestore's
+     * per-batch cap is 500) since a long-running landlord could plausibly
+     * exceed that in one go.
+     */
+    suspend fun updateCurrencyForOwnedProperties(landlordId: String, currencyCode: String) {
+        val owned = propertiesCollection.whereEqualTo("landlordId", landlordId).get().await()
+        owned.documents.chunked(400).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { doc -> batch.update(doc.reference, "currency", currencyCode) }
+            batch.commit().await()
+        }
+    }
 
     /** One-off fetch. */
     suspend fun getById(propertyId: String): Property? =
@@ -226,15 +269,89 @@ class PropertyRepository(
 
     /**
      * Soft delete (feature-properties.md): properties are never hard-deleted.
-     * Sets `isDeleted = true` on the property doc and `retired = true` on its
-     * `propertyIdCodes` entry (the code is never reused). Bills and payments
-     * are left untouched. Blocked entirely if the property is occupied.
+     * Sets `isDeleted = true` + `deletedAt` on the property doc and
+     * `retired = true` + `deletedAt` on its `propertyIdCodes` entry (the code
+     * is never reused) — same two fields iOS's `deleteProperty` stamps.
+     * Bills and payments are left untouched. Blocked entirely if occupied.
      */
     suspend fun deleteProperty(property: Property) {
         check(!property.occupied) { "Occupied properties can't be deleted." }
         val batch = firestore.batch()
-        batch.update(propertiesCollection.document(property.id), "isDeleted", true)
-        batch.update(codesCollection.document(property.propertyIdCode), "retired", true)
+        batch.update(propertiesCollection.document(property.id), deletedFields())
+        // set(merge) rather than update(): a batch `update` on a nonexistent doc throws
+        // NOT_FOUND and rolls back the *whole* batch, including the isDeleted flip above —
+        // this must succeed even for legacy/manually-seeded properties whose propertyIdCodes
+        // registry doc was never created.
+        batch.set(codesCollection.document(property.propertyIdCode), retiredFields(), com.google.firebase.firestore.SetOptions.merge())
+        batch.commit().await()
+    }
+
+    private fun deletedFields(): Map<String, Any> = mapOf(
+        "isDeleted" to true,
+        "deletedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+    )
+
+    private fun retiredFields(): Map<String, Any> = mapOf(
+        "retired" to true,
+        "deletedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+    )
+
+    /**
+     * Add Flat to an existing building (ANDROID_PROPERTIES_FEATURE_SPEC.md
+     * §6.3) — only offered when the building's type supports multiple units.
+     * Shared building fields are copied from [representative] (an existing
+     * sibling flat); `occupied` starts false and the code is reserved in the
+     * same batch as creation, same as [addProperty].
+     */
+    suspend fun addFlat(representative: Property, unitName: String, monthlyRent: Double, propertyIdCode: String): String {
+        val propertyRef = propertiesCollection.document()
+        val batch = firestore.batch()
+        val doc = hashMapOf<String, Any?>(
+            "landlordId" to representative.landlordId,
+            "name" to representative.name,
+            "address" to representative.address,
+            "unit" to unitName,
+            "monthlyRent" to monthlyRent,
+            "occupied" to false,
+            "propertyIdCode" to propertyIdCode,
+            "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+            "propertyType" to representative.propertyTypeRaw,
+            "buildingName" to representative.buildingName,
+            "electricityAccountNumber" to representative.electricityAccountNumber,
+            "houseTaxNumber" to representative.houseTaxNumber,
+            "waterTaxNumber" to representative.waterTaxNumber,
+            "photoUrl" to representative.photoUrl,
+            "currency" to representative.currency,
+            "coOwners" to representative.coOwners,
+        )
+        batch.set(propertyRef, doc)
+
+        val codeRef = codesCollection.document(propertyIdCode)
+        batch.set(
+            codeRef,
+            hashMapOf(
+                "landlordId" to representative.landlordId,
+                "propertyId" to propertyRef.id,
+                "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+            ),
+        )
+        batch.commit().await()
+        return propertyRef.id
+    }
+
+    /**
+     * Delete a whole building (ANDROID_PROPERTIES_FEATURE_SPEC.md §6.6):
+     * soft-deletes every flat doc and retires every one of their registry
+     * codes, in one batch — same semantics as [deleteProperty] applied per
+     * flat. Blocked unless every flat is vacant.
+     */
+    suspend fun deleteBuilding(flats: List<Property>) {
+        check(flats.all { !it.occupied }) { "All units must be vacant before deleting the property." }
+        val batch = firestore.batch()
+        for (flat in flats) {
+            batch.update(propertiesCollection.document(flat.id), deletedFields())
+            batch.set(codesCollection.document(flat.propertyIdCode), retiredFields(), com.google.firebase.firestore.SetOptions.merge())
+        }
         batch.commit().await()
     }
 

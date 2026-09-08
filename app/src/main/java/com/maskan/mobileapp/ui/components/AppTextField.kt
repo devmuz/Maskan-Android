@@ -7,12 +7,19 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,6 +55,7 @@ fun AppTextField(
 ) {
     val colors = MaskanTheme.colors
     var isFocused by remember { mutableStateOf(false) }
+    var isPasswordVisible by remember { mutableStateOf(false) }
     val borderColor by animateColorAsState(
         targetValue = when {
             isError -> colors.danger
@@ -78,22 +86,38 @@ fun AppTextField(
                     modifier = Modifier.padding(vertical = if (singleLine) 0.dp else 14.dp),
                 )
             }
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = if (singleLine) 0.dp else 14.dp)
-                    .onFocusChanged { isFocused = it.isFocused },
-                textStyle = MaskanType.body.copy(color = colors.textPrimary),
-                cursorBrush = SolidColor(colors.gradientStart),
-                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                visualTransformation = if (isPassword) androidx.compose.ui.text.input.PasswordVisualTransformation() else VisualTransformation.None,
-                singleLine = singleLine,
-                minLines = minLines,
-                enabled = enabled,
-                interactionSource = remember { MutableInteractionSource() },
-            )
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = if (singleLine) 0.dp else 14.dp)
+                        .onFocusChanged { isFocused = it.isFocused },
+                    textStyle = MaskanType.body.copy(color = colors.textPrimary),
+                    cursorBrush = SolidColor(colors.gradientStart),
+                    keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                    visualTransformation = if (isPassword && !isPasswordVisible) {
+                        androidx.compose.ui.text.input.PasswordVisualTransformation()
+                    } else {
+                        VisualTransformation.None
+                    },
+                    singleLine = singleLine,
+                    minLines = minLines,
+                    enabled = enabled,
+                    interactionSource = remember { MutableInteractionSource() },
+                )
+                if (isPassword) {
+                    IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                        Icon(
+                            imageVector = if (isPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
+                            tint = colors.textTertiary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+            }
         }
     }
 }

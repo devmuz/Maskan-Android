@@ -34,10 +34,12 @@ import com.maskan.mobileapp.ui.theme.MaskanType
 import kotlinx.coroutines.launch
 
 /**
- * Full picker screen (08-landlord-settings.md). Changing currency does not
- * retroactively rewrite existing properties' `currency` field — new
- * properties get the new code, existing ones keep whatever they were
- * stamped with at creation.
+ * Full picker screen (08-landlord-settings.md). Changing currency here
+ * updates the landlord's own profile *and* batch-rewrites the `currency`
+ * field on every property this landlord primarily owns (ANDROID_PROPERTIES_FEATURE_SPEC.md
+ * §9) — otherwise already-created properties (and the tenants reading them,
+ * who can't read the landlord's profile doc) would keep showing whatever
+ * currency was stamped at creation time.
  */
 @Composable
 fun CurrencyPickerScreen(viewModel: LandlordViewModel, onBack: () -> Unit) {
@@ -63,7 +65,10 @@ fun CurrencyPickerScreen(viewModel: LandlordViewModel, onBack: () -> Unit) {
                     selected = option.code == landlord?.currencyCode,
                     onClick = {
                         val id = viewModel.landlordUid
-                        scope.launch { viewModel.landlordRepository.setCurrencyCode(id, option.code) }
+                        scope.launch {
+                            viewModel.landlordRepository.setCurrencyCode(id, option.code)
+                            viewModel.propertyRepository.updateCurrencyForOwnedProperties(id, option.code)
+                        }
                     },
                 )
             }

@@ -65,6 +65,7 @@ import com.maskan.mobileapp.ui.landlord.properties.BuildingDetailScreen
 import com.maskan.mobileapp.ui.landlord.properties.EditPropertyScreen
 import com.maskan.mobileapp.ui.landlord.properties.PropertiesScreen
 import com.maskan.mobileapp.ui.landlord.properties.PropertyDetailScreen
+import com.maskan.mobileapp.ui.landlord.properties.PropertyDocumentsScreen
 import com.maskan.mobileapp.ui.landlord.requests.LandlordRequestDetailScreen
 import com.maskan.mobileapp.ui.landlord.requests.LandlordRequestsScreen
 import com.maskan.mobileapp.ui.landlord.settings.CurrencyPickerScreen
@@ -130,6 +131,7 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     onAddBill = { innerNavController.navigate("add_bill") },
                     onRecordPayment = { innerNavController.navigate("record_payment") },
                     onOpenRequests = { innerNavController.navigate("requests") },
+                    onBillClick = { innerNavController.navigate("bill_detail/$it") },
                 )
             }
             composable("record_payment") {
@@ -187,6 +189,8 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     viewModel = viewModel,
                     propertyId = entry.arguments?.getString("propertyId").orEmpty(),
                     onBack = { innerNavController.popBackStack() },
+                    onDocumentsClick = { innerNavController.navigate("property_documents/$it") },
+                    onBillClick = { innerNavController.navigate("bill_detail/$it") },
                 )
             }
             composable("building_detail/{propertyId}", arguments = listOf(navArgument("propertyId") { type = NavType.StringType })) { entry ->
@@ -195,7 +199,16 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     propertyId = entry.arguments?.getString("propertyId").orEmpty(),
                     onBack = { innerNavController.popBackStack() },
                     onFlatClick = { innerNavController.navigate("property_detail/$it") },
+                    onEdit = { innerNavController.navigate("edit_property/$it") },
                     onUpgradeRequired = { innerNavController.navigate("paywall") },
+                    onDocumentsClick = { innerNavController.navigate("property_documents/$it") },
+                    onBillClick = { innerNavController.navigate("bill_detail/$it") },
+                )
+            }
+            composable("property_documents/{propertyId}", arguments = listOf(navArgument("propertyId") { type = NavType.StringType })) { entry ->
+                PropertyDocumentsScreen(
+                    propertyId = entry.arguments?.getString("propertyId").orEmpty(),
+                    onBack = { innerNavController.popBackStack() },
                 )
             }
             composable("add_property") {

@@ -6,6 +6,7 @@ import com.maskan.mobileapp.data.prefs.RolePreferences
 import com.maskan.mobileapp.data.prefs.ThemePreferences
 import com.maskan.mobileapp.data.repository.AuthRepository
 import com.maskan.mobileapp.data.repository.BillingRepository
+import com.maskan.mobileapp.data.repository.DocumentRepository
 import com.maskan.mobileapp.data.repository.LandlordRepository
 import com.maskan.mobileapp.data.repository.PropertyRepository
 import com.maskan.mobileapp.data.repository.PurchaseRepository
@@ -43,6 +44,14 @@ class AppContainer(context: Context) {
     val landlordRepository = LandlordRepository(firestore)
     val purchaseRepository = PurchaseRepository(appContext, landlordRepository)
     val updateRepository = UpdateRepository(remoteConfig, appContext.packageName, currentVersionCode())
+
+    /**
+     * Documents is deliberately not a shared singleton like the other four
+     * repositories (00-overview.md) — it mirrors iOS's `DocumentService`,
+     * which `PropertyDocumentsView` owns as its own `@StateObject` scoped to
+     * one propertyId at a time (feature_documents.md).
+     */
+    fun newDocumentRepository(): DocumentRepository = DocumentRepository(firestore, storage)
 
     private fun currentVersionCode(): Long = runCatching {
         val packageInfo = appContext.packageManager.getPackageInfo(appContext.packageName, 0)

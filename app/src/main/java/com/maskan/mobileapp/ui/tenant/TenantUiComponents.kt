@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -112,18 +113,24 @@ fun RequestRow(request: ServiceRequest, modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
                 modifier = Modifier.size(36.dp).background(colors.gradientStart.copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(requestCategoryIcon(request.category), contentDescription = null, tint = colors.gradientStart, modifier = Modifier.size(18.dp))
             }
-            Column {
-                Text(text = request.title, style = MaskanType.bodyMedium, color = colors.textPrimary)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = request.title,
+                    style = MaskanType.bodyMedium,
+                    color = colors.textPrimary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(text = "${request.category.label} · $dateLabel", style = MaskanType.secondary, color = colors.textSecondary)
             }
         }
-        StatusBadge(text = request.status.label, color = statusColor)
+        StatusBadge(text = request.status.label, color = statusColor, modifier = Modifier.padding(start = 8.dp))
     }
 }

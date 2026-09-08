@@ -14,16 +14,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.maskan.mobileapp.data.repository.FREE_PROPERTY_LIMIT
 import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.ui.components.EmptyState
 import com.maskan.mobileapp.ui.components.MaskanCard
@@ -49,9 +50,6 @@ import com.maskan.mobileapp.ui.theme.MaskanType
 import kotlinx.coroutines.launch
 
 private enum class PropertyFilter { ACTIVE, OLD }
-
-/** Free-tier owned-building cap (feature-iap.md) — co-owned buildings never count against this. */
-private const val FREE_PROPERTY_LIMIT = 1
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,114 +97,100 @@ fun PropertiesScreen(
         },
         modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding(),
     ) {
-        if (properties.isEmpty() && archivedGroups.isEmpty() && filter == PropertyFilter.ACTIVE) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = MaskanDimens.screenHPadding,
-                    end = MaskanDimens.screenHPadding,
-                    top = 16.dp,
-                    bottom = LocalLandlordContentBottomInset.current,
-                ),
-                verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
-            ) {
-                item { PropertiesHeader(gatedAddClick) }
-                item {
-                    EmptyState(
-                        icon = Icons.Filled.Apartment,
-                        title = "No properties yet",
-                        message = "Add your first property to start managing rent and bills.",
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = MaskanDimens.screenHPadding,
+                end = MaskanDimens.screenHPadding,
+                top = 16.dp,
+                bottom = LocalLandlordContentBottomInset.current,
+            ),
+            verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
+        ) {
+            item { PropertiesHeader() }
+            item {
+                SegmentedControl(
+                    options = listOf(PropertyFilter.ACTIVE, PropertyFilter.OLD),
+                    selected = filter,
+                    onSelect = { filter = it },
+                    label = { if (it == PropertyFilter.ACTIVE) "Active" else "Old" },
+                )
+            }
+            if (filter == PropertyFilter.ACTIVE) {
+                if (groups.isEmpty()) {
+                    item {
+                        EmptyState(
+                            icon = Icons.Filled.Apartment,
+                            title = "No active properties",
+                            message = "Add your first property to start managing rent and bills.",
+                        )
+                    }
+                }
+                items(groups, key = { it.key }) { group ->
+                    val representative = group.flats.first()
+                    val isLocked = remember(group, properties, isPro) {
+                        com.maskan.mobileapp.data.repository.isBuildingLocked(
+                            buildingKey = group.key,
+                            ownerLandlordId = representative.landlordId,
+                            viewerId = viewModel.landlordUid,
+                            viewerIsPro = isPro,
+                            allOwnedProperties = properties,
+                        )
+                    }
+                    PropertyGroupCard(
+                        group = group,
+                        isUploadingPhoto = group.flats.any { it.id in uploadingIds },
+                        isLocked = isLocked,
+                        currencyCode = currencyCode(group.flats),
+                        onFlatClick = onPropertyClick,
+                        onManageCoOwners = { onBuildingClick(representative.id) },
+                    )
+                }
+            } else {
+                if (archivedGroups.isEmpty()) {
+                    item {
+                        EmptyState(
+                            icon = Icons.Filled.Apartment,
+                            title = "No old properties",
+                            message = "Properties you delete appear here, kept for bill and payment history.",
+                        )
+                    }
+                }
+                items(archivedGroups, key = { it.key }) { group ->
+                    ArchivedPropertyGroupCard(
+                        group = group,
+                        currencyCode = currencyCode(group.flats),
+                        onFlatClick = onArchivedPropertyClick,
                     )
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = MaskanDimens.screenHPadding,
-                    end = MaskanDimens.screenHPadding,
-                    top = 16.dp,
-                    bottom = LocalLandlordContentBottomInset.current,
-                ),
-                verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
-            ) {
-                item { PropertiesHeader(gatedAddClick) }
-                if (archivedGroups.isNotEmpty()) {
-                    item {
-                        SegmentedControl(
-                            options = listOf(PropertyFilter.ACTIVE, PropertyFilter.OLD),
-                            selected = filter,
-                            onSelect = { filter = it },
-                            label = { if (it == PropertyFilter.ACTIVE) "Active" else "Old" },
-                        )
-                    }
-                }
-                if (filter == PropertyFilter.ACTIVE) {
-                    if (groups.isEmpty()) {
-                        item {
-                            EmptyState(
-                                icon = Icons.Filled.Apartment,
-                                title = "No active properties",
-                                message = "Add your first property to start managing rent and bills.",
-                            )
-                        }
-                    }
-                    items(groups, key = { it.key }) { group ->
-                        PropertyGroupCard(
-                            group = group,
-                            isUploadingPhoto = group.flats.any { it.id in uploadingIds },
-                            currencyCode = currencyCode(group.flats),
-                            onFlatClick = onPropertyClick,
-                            onManageCoOwners = { onBuildingClick(group.flats.first().id) },
-                        )
-                    }
-                } else {
-                    if (archivedGroups.isEmpty()) {
-                        item {
-                            EmptyState(
-                                icon = Icons.Filled.Apartment,
-                                title = "No old properties",
-                                message = "Properties you delete appear here, kept for bill and payment history.",
-                            )
-                        }
-                    }
-                    items(archivedGroups, key = { it.key }) { group ->
-                        ArchivedPropertyGroupCard(
-                            group = group,
-                            currencyCode = currencyCode(group.flats),
-                            onFlatClick = onArchivedPropertyClick,
-                        )
-                    }
-                }
-            }
+        }
+
+        FloatingActionButton(
+            onClick = gatedAddClick,
+            containerColor = colors.gradientStart,
+            contentColor = androidx.compose.ui.graphics.Color.White,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp)
+                .padding(bottom = LocalLandlordContentBottomInset.current),
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = "Add Property")
         }
     }
 }
 
 @Composable
-private fun PropertiesHeader(onAddClick: () -> Unit) {
+private fun PropertiesHeader() {
     val colors = MaskanTheme.colors
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text = "Properties", style = MaskanType.screenTitle, color = colors.textPrimary)
-        Box(
-            modifier = Modifier.size(44.dp).background(colors.surface, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            IconButton(onClick = onAddClick) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Property", tint = colors.gradientStart)
-            }
-        }
-    }
+    Text(text = "Properties", style = MaskanType.screenTitle, color = colors.textPrimary)
 }
 
 @Composable
 private fun PropertyGroupCard(
     group: PropertyGroup,
     isUploadingPhoto: Boolean,
+    isLocked: Boolean,
     currencyCode: String,
     onFlatClick: (String) -> Unit,
     onManageCoOwners: () -> Unit,
@@ -222,9 +206,12 @@ private fun PropertyGroupCard(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
             Column(modifier = Modifier.weight(1f).clickable(onClick = onManageCoOwners)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (isLocked) {
+                        Icon(Icons.Filled.Lock, contentDescription = "Locked on the free plan", tint = colors.textTertiary, modifier = Modifier.size(14.dp))
+                    }
                     Text(text = group.buildingName, style = MaskanType.cardTitle, color = colors.textPrimary)
                     Icon(Icons.Filled.Group, contentDescription = "Manage co-owners", tint = colors.textTertiary, modifier = Modifier.size(16.dp))
-                }
+}
                 Text(text = group.address, style = MaskanType.secondary, color = colors.textSecondary)
             }
             Column(horizontalAlignment = Alignment.End) {
@@ -292,9 +279,17 @@ private fun ArchivedPropertyGroupCard(
             .padding(MaskanDimens.cardPadding),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column {
-            Text(text = group.buildingName, style = MaskanType.cardTitle, color = colors.textPrimary)
-            Text(text = group.address, style = MaskanType.secondary, color = colors.textSecondary)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+            Column {
+                Text(text = group.buildingName, style = MaskanType.cardTitle, color = colors.textPrimary)
+                Text(text = group.address, style = MaskanType.secondary, color = colors.textSecondary)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                StatusBadge(text = "Deleted", color = colors.danger)
+                group.propertyType?.let {
+                    Text(text = it.label, style = MaskanType.bodyMedium, color = colors.gradientStart, modifier = Modifier.padding(top = 4.dp))
+                }
+            }
         }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             group.flats.forEach { flat ->
@@ -310,7 +305,15 @@ private fun ArchivedPropertyGroupCard(
                                 Text(text = flat.propertyIdCode, style = MaskanType.secondary, color = colors.gradientStart)
                             }
                         }
-                        StatusBadge(text = "Deleted", color = colors.textTertiary)
+                        Column(horizontalAlignment = Alignment.End) {
+                            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
+                            Text(
+                                text = "${AmountFormatter.format(flat.monthlyRent, flat.currency ?: currencyCode)} / month",
+                                style = MaskanType.secondary,
+                                color = colors.textSecondary,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
                     }
                 }
             }

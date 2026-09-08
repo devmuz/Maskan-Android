@@ -38,6 +38,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.ui.components.GradientButton
 import com.maskan.mobileapp.ui.components.MaskanCard
 import com.maskan.mobileapp.ui.components.StatusBadge
@@ -47,20 +48,19 @@ import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
-import java.util.Locale
 
 @Composable
 fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBack: () -> Unit, onEdit: (String) -> Unit) {
     val colors = MaskanTheme.colors
     val properties by viewModel.properties.collectAsStateWithLifecycle()
+    val landlord by viewModel.landlord.collectAsStateWithLifecycle()
     val property = properties.find { it.id == propertyId }
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     var copied by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var deleteError by remember { mutableStateOf<String?>(null) }
-    val numberFormat = remember { NumberFormat.getNumberInstance(Locale.getDefault()) }
+    val currencyCode = property?.currency ?: landlord?.currencyCode ?: "USD"
 
     if (property == null) {
         Box(modifier = Modifier.fillMaxSize().background(colors.background), contentAlignment = Alignment.Center) {
@@ -129,7 +129,7 @@ fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBac
 
             MaskanCard(modifier = Modifier.fillMaxWidth()) {
                 DetailRow("Address", property.address)
-                DetailRow("Monthly rent", "${numberFormat.format(property.monthlyRent)} / month")
+                DetailRow("Monthly rent", "${AmountFormatter.format(property.monthlyRent, currencyCode)} / month")
                 property.electricityAccountNumber?.takeIf { it.isNotBlank() }?.let { DetailRow("Electricity account", it) }
                 property.houseTaxNumber?.takeIf { it.isNotBlank() }?.let { DetailRow("House tax number", it) }
                 property.waterTaxNumber?.takeIf { it.isNotBlank() }?.let { DetailRow("Water tax number", it) }

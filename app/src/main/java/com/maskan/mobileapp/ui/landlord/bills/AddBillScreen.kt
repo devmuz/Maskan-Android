@@ -178,7 +178,7 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
                     }
                 }
                 SegmentedControl(
-                    options = listOf(Frequency.MONTHLY, Frequency.ANNUAL),
+                    options = listOf(Frequency.MONTHLY, Frequency.ANNUAL, Frequency.ONE_TIME),
                     selected = frequency,
                     onSelect = { frequency = it },
                     label = { it.label },

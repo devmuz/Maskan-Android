@@ -1,9 +1,11 @@
 package com.maskan.mobileapp
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -52,6 +54,14 @@ private fun MaskanApp(container: AppContainer) {
         AppTheme.DARK -> true
     }
     MaskanTheme(darkTheme = darkTheme) {
+        // Lowest-priority BackHandler in the tree: only fires once every nested NavHost
+        // (outer splash/auth/shell graph, inner tab-shell graph) has nothing left to pop —
+        // i.e. the user is sitting on a root tab. Without this, the system's default
+        // "finish the Activity" behavior kicks in and back-press quits the app outright
+        // instead of the expected "send to background" behavior.
+        val activity = LocalContext.current as? Activity
+        BackHandler(enabled = activity != null) { activity?.moveTaskToBack(false) }
+
         Surface(modifier = Modifier.fillMaxSize()) {
             MaskanNavHost()
         }

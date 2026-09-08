@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maskan.mobileapp.data.model.ServiceRequest
@@ -137,15 +138,21 @@ private fun RequestListRow(
 
     MaskanCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(
                     modifier = Modifier.size(36.dp).background(colors.gradientStart.copy(alpha = 0.12f), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(requestCategoryIcon(request.category), contentDescription = null, tint = colors.gradientStart, modifier = Modifier.size(18.dp))
                 }
-                Column {
-                    Text(text = request.title, style = MaskanType.bodyMedium, color = colors.textPrimary)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = request.title,
+                        style = MaskanType.bodyMedium,
+                        color = colors.textPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     Text(
                         text = "$tenantName · $propertyName",
                         style = MaskanType.secondary,
@@ -156,7 +163,7 @@ private fun RequestListRow(
                     }
                 }
             }
-            StatusBadge(text = request.status.label, color = statusColor)
+            StatusBadge(text = request.status.label, color = statusColor, modifier = Modifier.padding(start = 8.dp))
         }
     }
 }

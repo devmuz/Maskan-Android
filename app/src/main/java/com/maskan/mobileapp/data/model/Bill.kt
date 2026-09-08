@@ -86,4 +86,6 @@ enum class BillStatus(val raw: String, val label: String) {
 enum class Frequency(val raw: String, val label: String) {
     MONTHLY("monthly", "Monthly"),
     ANNUAL("annual", "Annual"),
+    /** Never a `BillType.defaultFrequency` — only reachable by manually picking it in Add Bill. */
+    ONE_TIME("oneTime", "One Time"),
 }

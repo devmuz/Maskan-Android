@@ -74,6 +74,19 @@ class LandlordRepository(private val firestore: FirebaseFirestore) {
     }
 
     /**
+     * Registers this device for push (feature_push.md). Unlike iOS's APNs
+     * dance, a token is available immediately from Firebase Messaging without
+     * waiting for a system permission prompt, so this can run right at
+     * session start rather than needing a "cached until sign-in" fallback.
+     * `onNewToken` in [com.maskan.mobileapp.data.push.MaskanMessagingService]
+     * covers token refreshes after this point.
+     */
+    suspend fun saveFcmTokenIfAvailable(landlordId: String) {
+        val token = runCatching { com.google.firebase.messaging.FirebaseMessaging.getInstance().token.await() }.getOrNull() ?: return
+        landlordsCollection.document(landlordId).set(mapOf("fcmToken" to token), com.google.firebase.firestore.SetOptions.merge()).await()
+    }
+
+    /**
      * Co-owner lookup by email (feature-properties.md's `addCoOwner` flow).
      * Relies on the `landlords` collection's open read rule (any authenticated
      * user can read, not just self) — see feature-properties.md's "Co-owner

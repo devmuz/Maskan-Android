@@ -14,12 +14,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,8 +38,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maskan.mobileapp.data.model.Bill
 import com.maskan.mobileapp.data.model.BillStatus
+import com.maskan.mobileapp.data.model.BillType
 import com.maskan.mobileapp.data.model.PaidBy
 import com.maskan.mobileapp.data.model.Property
+import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.data.util.PeriodFormatter
 import com.maskan.mobileapp.ui.components.EmptyState
 import com.maskan.mobileapp.ui.components.MaskanCard
@@ -46,7 +53,6 @@ import com.maskan.mobileapp.ui.landlord.billTypeIcon
 import com.maskan.mobileapp.ui.theme.MaskanDimens
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -64,18 +70,22 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
     val colors = MaskanTheme.colors
     val bills by viewModel.bills.collectAsStateWithLifecycle()
     val properties by viewModel.properties.collectAsStateWithLifecycle()
+    val landlord by viewModel.landlord.collectAsStateWithLifecycle()
     val propertiesById = remember(properties) { properties.associateBy { it.id } }
-    val numberFormat = remember { NumberFormat.getNumberInstance(Locale.getDefault()) }
+    val fallbackCurrencyCode = landlord?.currencyCode ?: "USD"
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
 
     var filter by remember { mutableStateOf(BillFilter.ALL) }
-    val filtered = remember(bills, filter) {
-        when (filter) {
+    var typeFilter by remember { mutableStateOf<BillType?>(null) }
+    var showTypeMenu by remember { mutableStateOf(false) }
+    val filtered = remember(bills, filter, typeFilter) {
+        val byStatus = when (filter) {
             BillFilter.ALL -> bills
             BillFilter.PENDING -> bills.filter { it.status == BillStatus.PENDING }
             BillFilter.OVERDUE -> bills.filter { it.status == BillStatus.OVERDUE }
             BillFilter.PAID -> bills.filter { it.status == BillStatus.PAID }
         }
+        typeFilter?.let { type -> byStatus.filter { it.type == type } } ?: byStatus
     }
     val grouped = remember(filtered, properties) {
         filtered.groupBy { it.propertyId }
@@ -94,7 +104,44 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
             ),
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.itemSpacing),
         ) {
-            item { Text(text = "Bills", style = MaskanType.screenTitle, color = colors.textPrimary) }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(text = "Bills", style = MaskanType.screenTitle, color = colors.textPrimary)
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(if (typeFilter != null) colors.gradientStart else colors.surface, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            IconButton(onClick = { showTypeMenu = true }) {
+                                Icon(
+                                    Icons.Filled.FilterAlt,
+                                    contentDescription = "Filter by bill type",
+                                    tint = if (typeFilter != null) Color.White else colors.gradientStart,
+                                )
+                            }
+                        }
+                        DropdownMenu(expanded = showTypeMenu, onDismissRequest = { showTypeMenu = false }) {
+                            BillType.entries.forEach { billType ->
+                                DropdownMenuItem(
+                                    text = { Text(billType.label) },
+                                    leadingIcon = { Icon(billTypeIcon(billType), contentDescription = null) },
+                                    onClick = {
+                                        // Tapping the currently-active type again clears the filter (07-landlord-bills.md).
+                                        typeFilter = if (typeFilter == billType) null else billType
+                                        showTypeMenu = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             item {
                 SegmentedControl(
                     options = BillFilter.entries,
@@ -131,7 +178,8 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
                         MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
                             val sorted = propertyBills.sortedByDescending { it.dueDate }
                             sorted.forEachIndexed { index, bill ->
-                                BillRow(bill, numberFormat, dateFormat, onClick = { onBillClick(bill.id) })
+                                val currencyCode = property?.currency ?: fallbackCurrencyCode
+                                BillRow(bill, currencyCode, dateFormat, onClick = { onBillClick(bill.id) })
                                 if (index != sorted.lastIndex) {
                                     androidx.compose.material3.HorizontalDivider(color = colors.border)
                                 }
@@ -157,7 +205,7 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
 }
 
 @Composable
-private fun BillRow(bill: Bill, numberFormat: NumberFormat, dateFormat: SimpleDateFormat, onClick: () -> Unit) {
+private fun BillRow(bill: Bill, currencyCode: String, dateFormat: SimpleDateFormat, onClick: () -> Unit) {
     val colors = MaskanTheme.colors
     // `verifying` shows as "Pending" here — it's an internal state meaning "tenant says
     // they paid, awaiting confirmation," not part of this list's status vocabulary
@@ -196,7 +244,7 @@ private fun BillRow(bill: Bill, numberFormat: NumberFormat, dateFormat: SimpleDa
             }
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(text = numberFormat.format(bill.amount), style = MaskanType.bodyMedium, color = colors.textPrimary)
+            Text(text = AmountFormatter.format(bill.amount, currencyCode), style = MaskanType.bodyMedium, color = colors.textPrimary)
             StatusBadge(text = landlordDisplayLabel, color = statusColor, modifier = Modifier.padding(top = 4.dp))
         }
     }

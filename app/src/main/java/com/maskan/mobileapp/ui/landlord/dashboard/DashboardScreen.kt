@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maskan.mobileapp.data.model.Bill
 import com.maskan.mobileapp.data.model.Property
 import com.maskan.mobileapp.data.model.ServiceRequestStatus
+import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.ui.components.ChartLegend
 import com.maskan.mobileapp.ui.components.GroupedBarChart
 import com.maskan.mobileapp.ui.components.MaskanCard
@@ -60,9 +61,7 @@ import com.maskan.mobileapp.ui.theme.MaskanDimens
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
 import java.time.LocalDate
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +71,7 @@ fun DashboardScreen(
     onAddBill: () -> Unit,
     onRecordPayment: () -> Unit,
     onOpenRequests: () -> Unit,
+    onBillClick: (String) -> Unit,
 ) {
     val colors = MaskanTheme.colors
     val properties by viewModel.properties.collectAsStateWithLifecycle()
@@ -79,6 +79,7 @@ fun DashboardScreen(
     val bills by viewModel.bills.collectAsStateWithLifecycle()
     val payments by viewModel.payments.collectAsStateWithLifecycle()
     val requests by viewModel.requests.collectAsStateWithLifecycle()
+    val landlord by viewModel.landlord.collectAsStateWithLifecycle()
     val pendingRequestCount = remember(requests) { requests.count { it.status == ServiceRequestStatus.PENDING } }
 
     val today = remember { LocalDate.now() }
@@ -89,7 +90,7 @@ fun DashboardScreen(
     val upcoming = remember(bills) { upcomingBills(bills, today) }
     val chartBuckets = remember(bills, payments) { chartBuckets(bills, payments) }
     val propertiesById = remember(properties) { properties.associateBy { it.id } }
-    val numberFormat = remember { NumberFormat.getNumberInstance(Locale.getDefault()) }
+    val fallbackCurrencyCode = landlord?.currencyCode ?: "USD"
 
     val statCards = listOf(
         StatCardData(Icons.Filled.Apartment, properties.size.toString(), "Properties", colors.gradientStart),
@@ -223,7 +224,8 @@ fun DashboardScreen(
                         propertiesById = propertiesById,
                         today = today,
                         moreLabel = "more overdue",
-                        numberFormat = numberFormat,
+                        fallbackCurrencyCode = fallbackCurrencyCode,
+                        onBillClick = onBillClick,
                     )
                 }
             }
@@ -239,7 +241,8 @@ fun DashboardScreen(
                     propertiesById = propertiesById,
                     today = today,
                     moreLabel = "more due soon",
-                    numberFormat = numberFormat,
+                    fallbackCurrencyCode = fallbackCurrencyCode,
+                    onBillClick = onBillClick,
                     emptyMessage = "Nothing due in the next 7 days",
                 )
             }
@@ -274,7 +277,8 @@ private fun BillListCard(
     propertiesById: Map<String, Property>,
     today: LocalDate,
     moreLabel: String,
-    numberFormat: NumberFormat,
+    fallbackCurrencyCode: String,
+    onBillClick: (String) -> Unit,
     emptyMessage: String? = null,
 ) {
     val colors = MaskanTheme.colors
@@ -303,7 +307,7 @@ private fun BillListCard(
                     Column(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         bills.take(4).forEach { bill ->
                             val property = propertiesById[bill.propertyId]
-                            DashboardBillRow(bill, property, today, numberFormat)
+                            DashboardBillRow(bill, property, today, property?.currency ?: fallbackCurrencyCode, onClick = { onBillClick(bill.id) })
                         }
                         val remaining = bills.size - 4
                         if (remaining > 0) {
@@ -317,13 +321,13 @@ private fun BillListCard(
 }
 
 @Composable
-private fun DashboardBillRow(bill: Bill, property: Property?, today: LocalDate, numberFormat: NumberFormat) {
+private fun DashboardBillRow(bill: Bill, property: Property?, today: LocalDate, currencyCode: String, onClick: () -> Unit) {
     val colors = MaskanTheme.colors
     val statusLabel = dueStatusLabel(bill, today)
     val statusColor = if (statusLabel == "Overdue") colors.danger else colors.warning
     val propertyName = property?.let { propertyDisplayName(it.buildingName, it.name, it.unit) } ?: ""
 
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(
                 modifier = Modifier.size(32.dp).background(colors.gradientStart.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
@@ -337,7 +341,7 @@ private fun DashboardBillRow(bill: Bill, property: Property?, today: LocalDate, 
             }
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(text = numberFormat.format(bill.amount), style = MaskanType.bodyMedium, color = colors.textPrimary)
+            Text(text = AmountFormatter.format(bill.amount, currencyCode), style = MaskanType.bodyMedium, color = colors.textPrimary)
             Text(text = statusLabel, style = MaskanType.caption, color = statusColor)
         }
     }

@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maskan.mobileapp.data.model.BillStatus
 import com.maskan.mobileapp.data.model.Payment
 import com.maskan.mobileapp.data.model.PaymentMethods
+import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.data.util.PeriodFormatter
 import com.maskan.mobileapp.ui.components.AppTextField
 import com.maskan.mobileapp.ui.components.GradientButton
@@ -52,7 +53,6 @@ import com.maskan.mobileapp.ui.theme.MaskanDimens
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -65,9 +65,9 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
     val bills by viewModel.bills.collectAsStateWithLifecycle()
     val payments by viewModel.payments.collectAsStateWithLifecycle()
     val properties by viewModel.properties.collectAsStateWithLifecycle()
+    val landlord by viewModel.landlord.collectAsStateWithLifecycle()
 
     val bill = bills.find { it.id == billId }
-    val numberFormat = remember { NumberFormat.getNumberInstance(Locale.getDefault()) }
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
 
     var showRecordPayment by remember { mutableStateOf(false) }
@@ -82,6 +82,7 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
     }
 
     val property = properties.find { it.id == bill.propertyId }
+    val currencyCode = property?.currency ?: landlord?.currencyCode ?: "USD"
     val billPayments = payments.filter { it.billId == bill.id }.sortedByDescending { it.paidDate }
     val statusColor = when (bill.status) {
         BillStatus.PAID -> colors.success
@@ -110,7 +111,7 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
                     StatusBadge(text = bill.status.label, color = statusColor)
                 }
                 Text(text = bill.type.label, style = MaskanType.sectionTitle, color = colors.textPrimary, modifier = Modifier.padding(top = 12.dp))
-                Text(text = numberFormat.format(bill.amount), style = MaskanType.screenTitle, color = colors.textPrimary, modifier = Modifier.padding(top = 4.dp))
+                Text(text = AmountFormatter.format(bill.amount, currencyCode), style = MaskanType.screenTitle, color = colors.textPrimary, modifier = Modifier.padding(top = 4.dp))
 
                 Column(modifier = Modifier.padding(top = 16.dp)) {
                     DetailRow("Property", property?.let { if (it.unit.isNotBlank()) "${it.displayBuildingName} · ${it.unit}" else it.displayBuildingName } ?: "—")
@@ -164,7 +165,7 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
                     Text(text = "Payment History", style = MaskanType.cardTitle, color = colors.textPrimary, modifier = Modifier.padding(bottom = 12.dp))
                     MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
                         billPayments.forEachIndexed { index, payment ->
-                            PaymentRow(payment, numberFormat, dateFormat)
+                            PaymentRow(payment, currencyCode, dateFormat)
                             if (index != billPayments.lastIndex) HorizontalDivider(color = colors.border)
                         }
                     }
@@ -189,7 +190,7 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
                 billAmount = bill.amount,
                 typeLabel = bill.type.label,
                 periodLabel = PeriodFormatter.displayLabel(bill.period),
-                numberFormat = numberFormat,
+                currencyCode = currencyCode,
                 onConfirm = { amount, method, notes ->
                     scope.launch {
                         try {
@@ -233,11 +234,11 @@ private fun DetailRow(label: String, value: String) {
 }
 
 @Composable
-private fun PaymentRow(payment: Payment, numberFormat: NumberFormat, dateFormat: SimpleDateFormat) {
+private fun PaymentRow(payment: Payment, currencyCode: String, dateFormat: SimpleDateFormat) {
     val colors = MaskanTheme.colors
     Row(modifier = Modifier.fillMaxWidth().padding(MaskanDimens.cardPadding), horizontalArrangement = Arrangement.SpaceBetween) {
         Column {
-            Text(text = numberFormat.format(payment.amount), style = MaskanType.bodyMedium, color = colors.textPrimary)
+            Text(text = AmountFormatter.format(payment.amount, currencyCode), style = MaskanType.bodyMedium, color = colors.textPrimary)
             Text(text = payment.method, style = MaskanType.secondary, color = colors.textSecondary)
         }
         Text(text = payment.paidDate?.let { dateFormat.format(it) } ?: "", style = MaskanType.secondary, color = colors.textSecondary)
@@ -249,7 +250,7 @@ private fun RecordBillPaymentSheet(
     billAmount: Double,
     typeLabel: String,
     periodLabel: String,
-    numberFormat: NumberFormat,
+    currencyCode: String,
     onConfirm: (amount: Double, method: String, notes: String?) -> Unit,
 ) {
     val colors = MaskanTheme.colors
@@ -283,7 +284,7 @@ private fun RecordBillPaymentSheet(
         MaskanCard(modifier = Modifier.fillMaxWidth(), subtle = true) {
             DetailRow("Type", typeLabel)
             DetailRow("Period", periodLabel)
-            DetailRow("Bill Amount", numberFormat.format(billAmount))
+            DetailRow("Bill Amount", AmountFormatter.format(billAmount, currencyCode))
         }
 
         GradientButton(

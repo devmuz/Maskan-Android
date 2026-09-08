@@ -93,6 +93,7 @@ fun TenantDetailScreen(
     var showDueDayMenu by remember { mutableStateOf(false) }
     var showAdjustAmount by remember { mutableStateOf(false) }
     var reminderSentMessage by remember { mutableStateOf<String?>(null) }
+    var showCallChooser by remember { mutableStateOf(false) }
     var showResetPasswordConfirm by remember { mutableStateOf(false) }
     var newTemporaryPassword by remember { mutableStateOf<String?>(null) }
     var resetError by remember { mutableStateOf<String?>(null) }
@@ -153,8 +154,11 @@ fun TenantDetailScreen(
                                 .size(44.dp)
                                 .background(colors.primaryGradient, CircleShape)
                                 .clickable {
-                                    val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:${tenant.contact}"))
-                                    context.startActivity(intent)
+                                    if (com.maskan.mobileapp.data.util.isWhatsAppInstalled(context)) {
+                                        showCallChooser = true
+                                    } else {
+                                        com.maskan.mobileapp.data.util.launchPhoneDialer(context, tenant.contact)
+                                    }
                                 },
                             contentAlignment = Alignment.Center,
                         ) {
@@ -402,6 +406,14 @@ fun TenantDetailScreen(
             title = { Text("Couldn't reset password") },
             text = { Text(message) },
             confirmButton = { TextButton(onClick = { resetError = null }) { Text("OK") } },
+        )
+    }
+
+    if (showCallChooser) {
+        com.maskan.mobileapp.ui.components.CallChooserDialog(
+            onDismiss = { showCallChooser = false },
+            onCall = { com.maskan.mobileapp.data.util.launchPhoneDialer(context, tenant.contact) },
+            onWhatsApp = { com.maskan.mobileapp.data.util.launchWhatsAppChat(context, tenant.contact) },
         )
     }
 }
