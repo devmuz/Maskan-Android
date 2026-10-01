@@ -8,10 +8,12 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.maskan.mobileapp.BuildConfig
 import com.maskan.mobileapp.MainActivity
 import com.maskan.mobileapp.R
 import kotlinx.coroutines.CoroutineScope
@@ -33,7 +35,8 @@ class MaskanMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
         scope.launch {
-            FirebaseFirestore.getInstance().collection("landlords").document(uid)
+            FirebaseFirestore.getInstance(FirebaseApp.getInstance(), BuildConfig.FIRESTORE_DATABASE_ID)
+                .collection("landlords").document(uid)
                 .set(mapOf("fcmToken" to token), com.google.firebase.firestore.SetOptions.merge())
         }
     }

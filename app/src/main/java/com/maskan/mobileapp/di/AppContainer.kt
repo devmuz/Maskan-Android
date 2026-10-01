@@ -13,11 +13,13 @@ import com.maskan.mobileapp.data.repository.PurchaseRepository
 import com.maskan.mobileapp.data.repository.ServiceRequestRepository
 import com.maskan.mobileapp.data.repository.TenantRepository
 import com.maskan.mobileapp.data.repository.UpdateRepository
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.storage.FirebaseStorage
+import com.maskan.mobileapp.BuildConfig
 
 /**
  * Manual composition root. Everything here is a process-wide singleton,
@@ -29,7 +31,8 @@ class AppContainer(context: Context) {
     private val appContext = context.applicationContext
 
     private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val firestore: FirebaseFirestore =
+        FirebaseFirestore.getInstance(FirebaseApp.getInstance(), BuildConfig.FIRESTORE_DATABASE_ID)
     private val storage: FirebaseStorage = FirebaseStorage.getInstance()
     private val functions: FirebaseFunctions = FirebaseFunctions.getInstance()
     private val remoteConfig: FirebaseRemoteConfig = FirebaseRemoteConfig.getInstance()

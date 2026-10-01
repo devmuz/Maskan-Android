@@ -39,10 +39,46 @@
               "client_type": 3
             },
             {
-              "client_id": "1069668978695-inb7n8lpcvq7eaqeqd4ciejtmgim4662.apps.googleusercontent.com",
+              "client_id": "1069668978695-atjv3jtjlr7uml09ei9nprgrsm368j0r.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.maskan.mobileapp"
+                "bundle_id": "com.maskan.mobileapp.uat"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1069668978695:android:9ef582415978b6d0d35aa2",
+        "android_client_info": {
+          "package_name": "com.maskan.mobileapp.dev"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1069668978695-g313aj19iqs4cjdnh4seu9nigeb0jota.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUv5Pdegf8GVNVFX7Wx2q5_BBDA01pDDU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1069668978695-g313aj19iqs4cjdnh4seu9nigeb0jota.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1069668978695-atjv3jtjlr7uml09ei9nprgrsm368j0r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.maskan.mobileapp.uat"
               }
             }
           ]

@@ -25,6 +25,31 @@ android {
             }
         }
     }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        // Dev and UAT intentionally share the com.maskan.mobileapp.dev app
+        // registration/applicationId (only a second Firebase Android app
+        // could be registered) — they differ only in which Firestore
+        // database they read/write. They cannot be installed side by side
+        // on the same device; the last one installed wins.
+        create("dev") {
+            dimension = "environment"
+            applicationId = "com.maskan.mobileapp.dev"
+            buildConfigField("String", "FIRESTORE_DATABASE_ID", "\"maskan-dev\"")
+        }
+        create("uat") {
+            dimension = "environment"
+            applicationId = "com.maskan.mobileapp.dev"
+            buildConfigField("String", "FIRESTORE_DATABASE_ID", "\"maskan-uat\"")
+        }
+        create("prod") {
+            dimension = "environment"
+            // Uses defaultConfig's applicationId (com.maskan.mobileapp) as-is.
+            buildConfigField("String", "FIRESTORE_DATABASE_ID", "\"maskan-prod\"")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -32,6 +57,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
