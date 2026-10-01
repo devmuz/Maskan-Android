@@ -33,7 +33,8 @@ class AppContainer(context: Context) {
     private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
     private val firestore: FirebaseFirestore =
         FirebaseFirestore.getInstance(FirebaseApp.getInstance(), BuildConfig.FIRESTORE_DATABASE_ID)
-    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
+    private val storage: FirebaseStorage =
+        FirebaseStorage.getInstance(FirebaseApp.getInstance(), BuildConfig.STORAGE_BUCKET_URL)
     private val functions: FirebaseFunctions = FirebaseFunctions.getInstance()
     private val remoteConfig: FirebaseRemoteConfig = FirebaseRemoteConfig.getInstance()
 

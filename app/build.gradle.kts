@@ -37,16 +37,19 @@ android {
             dimension = "environment"
             applicationId = "com.maskan.mobileapp.dev"
             buildConfigField("String", "FIRESTORE_DATABASE_ID", "\"maskan-dev\"")
+            buildConfigField("String", "STORAGE_BUCKET_URL", "\"gs://project-c1aab7fe-8aca-4756-82a-dev\"")
         }
         create("uat") {
             dimension = "environment"
             applicationId = "com.maskan.mobileapp.dev"
             buildConfigField("String", "FIRESTORE_DATABASE_ID", "\"maskan-uat\"")
+            buildConfigField("String", "STORAGE_BUCKET_URL", "\"gs://project-c1aab7fe-8aca-4756-82a-uat\"")
         }
         create("prod") {
             dimension = "environment"
             // Uses defaultConfig's applicationId (com.maskan.mobileapp) as-is.
             buildConfigField("String", "FIRESTORE_DATABASE_ID", "\"maskan-prod\"")
+            buildConfigField("String", "STORAGE_BUCKET_URL", "\"gs://project-c1aab7fe-8aca-4756-82a.firebasestorage.app\"")
         }
     }
 
