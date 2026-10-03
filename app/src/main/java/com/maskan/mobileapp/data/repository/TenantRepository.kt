@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.data.repository
 
+import com.maskan.mobileapp.BuildConfig
 import com.maskan.mobileapp.data.model.Property
 import com.maskan.mobileapp.data.model.Tenant
 import com.maskan.mobileapp.data.util.PasswordHasher
@@ -49,6 +50,18 @@ data class AssignedTenant(val tenant: Tenant, val temporaryPassword: String)
 class TenantRepository(private val firestore: FirebaseFirestore, private val functions: FirebaseFunctions) {
     private val tenantsCollection = firestore.collection("tenants")
     private val propertiesCollection = firestore.collection("properties")
+
+    /**
+     * Cloud Functions have no per-environment deploy target the way
+     * Firestore rules/Storage do (ENVIRONMENTS.md) — `saveTenantFcmToken`
+     * is deployed as one export per database, suffixed by environment
+     * (e.g. `saveTenantFcmTokenProd`). Derived from the same flavor-set
+     * `FIRESTORE_DATABASE_ID` ("maskan-dev"/"maskan-uat"/"maskan-prod")
+     * other repositories already key off of, so it stays in sync by
+     * construction.
+     */
+    private val functionEnvSuffix: String =
+        BuildConfig.FIRESTORE_DATABASE_ID.removePrefix("maskan-").replaceFirstChar(Char::uppercase)
 
     private val _tenants = MutableStateFlow<List<Tenant>>(emptyList())
     val tenants: StateFlow<List<Tenant>> = _tenants
@@ -214,6 +227,22 @@ class TenantRepository(private val firestore: FirebaseFirestore, private val fun
             batch.update(propertiesCollection.document(tenant.resolvedPropertyId), "occupied", false)
         }
         batch.commit().await()
+    }
+
+    /**
+     * Writes the tenant's current FCM token via `saveTenantFcmToken` (Admin
+     * SDK), not a direct Firestore write — the tenants rule only allows
+     * `landlordId == auth.uid` to update the doc, which a tenant never is.
+     * Enables `onNewReminderNotification` to turn a landlord's "Remind"
+     * notification into a real push (feature_push.md).
+     */
+    suspend fun saveFcmTokenIfAvailable() {
+        val token = runCatching { com.google.firebase.messaging.FirebaseMessaging.getInstance().token.await() }.getOrNull() ?: return
+        saveFcmToken(token)
+    }
+
+    suspend fun saveFcmToken(token: String) {
+        functions.getHttpsCallable("saveTenantFcmToken$functionEnvSuffix").call(hashMapOf("fcmToken" to token)).await()
     }
 
     /** Tenant-side self lookup: resolve "which tenant am I" by the code they logged in with. */

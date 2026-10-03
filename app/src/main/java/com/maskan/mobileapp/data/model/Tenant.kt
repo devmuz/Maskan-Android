@@ -30,6 +30,12 @@ data class Tenant(
      * when this is null (09-tenant-app.md).
      */
     val propertyDocumentId: String? = null,
+    /**
+     * Written server-side only, via the `saveTenantFcmToken` Cloud
+     * Function — the tenants security rule doesn't let a tenant update
+     * their own doc directly (feature_push.md).
+     */
+    val fcmToken: String? = null,
 ) {
     // @get:Exclude: without it, Firestore's reflection maps getStatus() to the same default
     // key ("status") that getStatusRaw()'s @PropertyName already targets, and throws "Found

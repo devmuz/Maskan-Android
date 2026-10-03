@@ -15,29 +15,41 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.maskan.mobileapp.BuildConfig
 import com.maskan.mobileapp.MainActivity
+import com.maskan.mobileapp.MaskanApplication
 import com.maskan.mobileapp.R
+import com.maskan.mobileapp.data.prefs.UserRole
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 const val FCM_CHANNEL_ID = "maskan_default"
 
 /**
- * Mirrors iOS's `AppDelegate` FCM bridge (feature_push.md): the token is
- * written to `landlords/{uid}.fcmToken` — the only field the deployed Cloud
- * Function (`onNewServiceRequest`) reads to push to a landlord. Tenants have
- * no push trigger server-side yet, so nothing is written for them here.
+ * Mirrors iOS's `AppDelegate` FCM bridge (feature_push.md). Landlord tokens
+ * are written directly to `landlords/{uid}.fcmToken` (the field
+ * `onNewServiceRequest` reads). Tenants can't write their own doc directly
+ * (tenants rule requires `landlordId == auth.uid`), so their token goes
+ * through the `saveTenantFcmToken` callable instead, which
+ * `onNewReminderNotification` then reads server-side.
  */
 class MaskanMessagingService : FirebaseMessagingService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onNewToken(token: String) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val container = (applicationContext as MaskanApplication).container
         scope.launch {
-            FirebaseFirestore.getInstance(FirebaseApp.getInstance(), BuildConfig.FIRESTORE_DATABASE_ID)
-                .collection("landlords").document(uid)
-                .set(mapOf("fcmToken" to token), com.google.firebase.firestore.SetOptions.merge())
+            when (container.rolePreferences.roleFlow.first()) {
+                UserRole.TENANT -> container.tenantRepository.saveFcmToken(token)
+                else ->
+                    FirebaseFirestore.getInstance(FirebaseApp.getInstance(), BuildConfig.FIRESTORE_DATABASE_ID)
+                        .collection("landlords").document(uid)
+                        .set(mapOf("fcmToken" to token), com.google.firebase.firestore.SetOptions.merge())
+                        .await()
+            }
         }
     }
 

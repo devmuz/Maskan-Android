@@ -101,6 +101,9 @@ class TenantSessionViewModel(private val container: AppContainer) : ViewModel() 
         // attach to (09-tenant-app.md's "listener startup order").
         if (uid != null) {
             viewModelScope.launch {
+                container.tenantRepository.saveFcmTokenIfAvailable()
+            }
+            viewModelScope.launch {
                 container.tenantRepository.tenantDocFlow(uid).collect { resolved ->
                     _tenant.value = resolved
                     val propertyId = resolved?.propertyDocumentId?.takeIf { it.isNotBlank() }
