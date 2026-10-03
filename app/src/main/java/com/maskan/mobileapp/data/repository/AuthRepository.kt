@@ -4,6 +4,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.functions.FirebaseFunctions
+import com.maskan.mobileapp.data.util.CloudFunctionEnv
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -49,7 +50,7 @@ class AuthRepository(
     suspend fun signInTenant(propertyIdCode: String, password: String): String {
         val code = propertyIdCode.trim().uppercase()
         val payload = hashMapOf("propertyId" to code, "password" to password)
-        val result = functions.getHttpsCallable("tenantLogin").call(payload).await()
+        val result = functions.getHttpsCallable("tenantLogin${CloudFunctionEnv.suffix}").call(payload).await()
 
         @Suppress("UNCHECKED_CAST")
         val resultMap = result.getData() as? Map<String, Any?>

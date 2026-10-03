@@ -1,8 +1,8 @@
 package com.maskan.mobileapp.data.repository
 
-import com.maskan.mobileapp.BuildConfig
 import com.maskan.mobileapp.data.model.Property
 import com.maskan.mobileapp.data.model.Tenant
+import com.maskan.mobileapp.data.util.CloudFunctionEnv
 import com.maskan.mobileapp.data.util.PasswordHasher
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -40,28 +40,18 @@ data class AssignedTenant(val tenant: Tenant, val temporaryPassword: String)
  * here just drop the snapshot).
  *
  * Tenants are matched on **either** `propertyId` or `propertyDocumentId`,
- * merged and de-duped client-side: iOS-created tenant docs put the property's
- * human-readable code (not the Firestore doc ID) in `propertyId` and rely on
- * `propertyDocumentId` for the real doc ID, while Android/Flutter-created
- * docs use `propertyId` correctly and never set `propertyDocumentId`. Fixing
- * iOS's `propertyId` value isn't this repo's to do (shared schema/other
- * client — see CLAUDE.md), so both fields are queried here instead.
+ * merged and de-duped client-side: tenant docs put the property's
+ * human-readable code (not the Firestore doc ID) in `propertyId` — required
+ * by the `tenantLogin` Cloud Function's query (feature_tenants.md) — and the
+ * real doc ID in `propertyDocumentId` (`assignTenant` below does this,
+ * matching iOS). Older Flutter-era docs predate `propertyDocumentId` and
+ * need the one-time `propertyIdCode` lookup fallback instead, so both fields
+ * are queried here regardless of which pattern a given doc follows.
  */
 class TenantRepository(private val firestore: FirebaseFirestore, private val functions: FirebaseFunctions) {
     private val tenantsCollection = firestore.collection("tenants")
     private val propertiesCollection = firestore.collection("properties")
 
-    /**
-     * Cloud Functions have no per-environment deploy target the way
-     * Firestore rules/Storage do (ENVIRONMENTS.md) — `saveTenantFcmToken`
-     * is deployed as one export per database, suffixed by environment
-     * (e.g. `saveTenantFcmTokenProd`). Derived from the same flavor-set
-     * `FIRESTORE_DATABASE_ID` ("maskan-dev"/"maskan-uat"/"maskan-prod")
-     * other repositories already key off of, so it stays in sync by
-     * construction.
-     */
-    private val functionEnvSuffix: String =
-        BuildConfig.FIRESTORE_DATABASE_ID.removePrefix("maskan-").replaceFirstChar(Char::uppercase)
 
     private val _tenants = MutableStateFlow<List<Tenant>>(emptyList())
     val tenants: StateFlow<List<Tenant>> = _tenants
@@ -146,11 +136,18 @@ class TenantRepository(private val firestore: FirebaseFirestore, private val fun
         batch.set(
             tenantRef,
             hashMapOf(
-                "propertyId" to propertyId,
+                // Must be the human-readable code, not the Firestore doc ID —
+                // the tenantLogin Cloud Function matches on this field
+                // literally (feature_tenants.md: "Always use propertyIdCode
+                // ... in propertyId — that's what the Cloud Function
+                // queries."). The real doc ID goes in propertyDocumentId
+                // instead, same as iOS, so internal lookups still resolve it.
+                "propertyId" to property.propertyIdCode,
                 "name" to name,
                 "contact" to contact,
                 "moveInDate" to moveInDate,
                 "propertyIdCode" to property.propertyIdCode,
+                "propertyDocumentId" to propertyId,
                 "passwordHash" to hash,
                 "passwordSalt" to salt,
                 "createdAt" to FieldValue.serverTimestamp(),
@@ -163,11 +160,12 @@ class TenantRepository(private val firestore: FirebaseFirestore, private val fun
 
         val tenant = Tenant(
             id = tenantRef.id,
-            propertyId = propertyId,
+            propertyId = property.propertyIdCode,
             name = name,
             contact = contact,
             moveInDate = moveInDate,
             propertyIdCode = property.propertyIdCode,
+            propertyDocumentId = propertyId,
             passwordHash = hash,
             passwordSalt = salt,
             landlordId = landlordId,
@@ -242,7 +240,7 @@ class TenantRepository(private val firestore: FirebaseFirestore, private val fun
     }
 
     suspend fun saveFcmToken(token: String) {
-        functions.getHttpsCallable("saveTenantFcmToken$functionEnvSuffix").call(hashMapOf("fcmToken" to token)).await()
+        functions.getHttpsCallable("saveTenantFcmToken${CloudFunctionEnv.suffix}").call(hashMapOf("fcmToken" to token)).await()
     }
 
     /** Tenant-side self lookup: resolve "which tenant am I" by the code they logged in with. */
@@ -282,7 +280,7 @@ class TenantRepository(private val firestore: FirebaseFirestore, private val fun
 
         val newSalt = PasswordHasher.generateSalt()
         val newHash = PasswordHasher.hash(newSalt, newPassword)
-        functions.getHttpsCallable("changeTenantPassword")
+        functions.getHttpsCallable("changeTenantPassword${CloudFunctionEnv.suffix}")
             .call(hashMapOf("passwordHash" to newHash, "passwordSalt" to newSalt))
             .await()
     }
