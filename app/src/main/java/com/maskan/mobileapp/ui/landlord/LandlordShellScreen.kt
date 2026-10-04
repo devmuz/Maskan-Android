@@ -28,9 +28,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import com.maskan.mobileapp.ui.theme.MaskanDimens
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -53,7 +57,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
+import com.maskan.mobileapp.data.model.PropertyType
 import com.maskan.mobileapp.di.LocalAppContainer
+import com.maskan.mobileapp.ui.coachmark.CoachMarkAnchorRegistry
+import com.maskan.mobileapp.ui.coachmark.CoachMarkOverlay
+import com.maskan.mobileapp.ui.coachmark.CoachMarkSequencer
+import com.maskan.mobileapp.ui.coachmark.CoachMarkStep
+import com.maskan.mobileapp.ui.coachmark.OnboardingStage
 import com.maskan.mobileapp.ui.landlord.bills.AddBillScreen
 import com.maskan.mobileapp.ui.landlord.bills.BillDetailScreen
 import com.maskan.mobileapp.ui.landlord.bills.BillsScreen
@@ -110,12 +120,31 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
     val viewModel: LandlordViewModel = viewModel(factory = LandlordViewModel.Factory(container))
     val innerNavController = rememberNavController()
 
+    val anchorRegistry = remember { CoachMarkAnchorRegistry() }
+    val coachMarkSequencer: CoachMarkSequencer = viewModel(factory = CoachMarkSequencer.Factory(container.coachmarkPreferences))
+    val coachMarkStage by coachMarkSequencer.stage.collectAsStateWithLifecycle()
+    val coachMarkInitialStageResolved by coachMarkSequencer.initialStageResolved.collectAsStateWithLifecycle()
+    var dismissedAddButtonHint by remember { mutableStateOf(false) }
+
     val backStackEntry by innerNavController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = tabItems.any { it.route == currentRoute }
 
     val navBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val contentBottomInset = navBarInset + MaskanDimens.glassBarContentClearance
+
+    // First-time landlord lands on Properties (instead of Dashboard) so the "point at the
+    // Add button" coachmark step is immediately visible, same as iOS's selectedTab trick —
+    // this only fires once, right after the async DataStore "has seen onboarding" read resolves.
+    LaunchedEffect(coachMarkInitialStageResolved) {
+        if (coachMarkInitialStageResolved && coachMarkStage == OnboardingStage.PointAtAddButton) {
+            innerNavController.navigate(LandlordTab.PROPERTIES) {
+                popUpTo(innerNavController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalLandlordContentBottomInset provides if (showBottomBar) contentBottomInset else 0.dp) {
@@ -174,6 +203,8 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     onBuildingClick = { innerNavController.navigate("building_detail/$it") },
                     onAddClick = { innerNavController.navigate("add_property") },
                     onUpgradeRequired = { innerNavController.navigate("paywall") },
+                    anchorRegistry = anchorRegistry,
+                    coachMarkSequencer = coachMarkSequencer,
                 )
             }
             composable("property_detail/{propertyId}", arguments = listOf(navArgument("propertyId") { type = NavType.StringType })) { entry ->
@@ -216,6 +247,7 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     viewModel = viewModel,
                     onDone = { innerNavController.popBackStack() },
                     onCancel = { innerNavController.popBackStack() },
+                    anchorRegistry = anchorRegistry,
                 )
             }
             composable("edit_property/{propertyId}", arguments = listOf(navArgument("propertyId") { type = NavType.StringType })) { entry ->
@@ -322,7 +354,57 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
+
+        if (currentRoute == LandlordTab.PROPERTIES &&
+            coachMarkStage == OnboardingStage.PointAtAddButton &&
+            !dismissedAddButtonHint
+        ) {
+            CoachMarkOverlay(
+                step = CoachMarkStep(
+                    id = "pointAtAddButton",
+                    description = "Add Properties to start tracking rent, bills, and tenants all in one place. Tap the + button to get started.",
+                ),
+                stepNumber = 1,
+                totalSteps = 1,
+                targetRect = anchorRegistry["addProperty"],
+                canGoPrevious = false,
+                isLastStep = true,
+                showsStepCounter = false,
+                showsSkip = false,
+                // "Done" only dismisses the hint locally — it must not finish the whole
+                // sequencer, or the 4 property-type steps would never show once the user
+                // actually taps the real + button (same reasoning as iOS).
+                onNext = { dismissedAddButtonHint = true },
+                onPrevious = {},
+                onSkip = coachMarkSequencer::skip,
+            )
+        }
+
+        if (currentRoute == "add_property") {
+            val propertyTypeStage = coachMarkStage as? OnboardingStage.PropertyTypeIntro
+            if (propertyTypeStage != null) {
+                val type = PropertyType.entries[propertyTypeStage.step]
+                CoachMarkOverlay(
+                    step = CoachMarkStep(id = type.name, description = propertyTypeDescription(type)),
+                    stepNumber = propertyTypeStage.step + 1,
+                    totalSteps = PropertyType.entries.size,
+                    targetRect = anchorRegistry[type.name],
+                    canGoPrevious = propertyTypeStage.step > 0,
+                    isLastStep = propertyTypeStage.step == PropertyType.entries.lastIndex,
+                    onNext = coachMarkSequencer::advancePropertyTypeIntro,
+                    onPrevious = coachMarkSequencer::stepBackPropertyTypeIntro,
+                    onSkip = coachMarkSequencer::skip,
+                )
+            }
+        }
     }
+}
+
+private fun propertyTypeDescription(type: PropertyType): String = when (type) {
+    PropertyType.FLAT -> "Flat — a unit inside a building. Add multiple flats under one building name."
+    PropertyType.VILLA -> "Villa — a standalone villa, one property, one tenant."
+    PropertyType.INDEPENDENT_HOUSE -> "House — a standalone house, one property, one tenant."
+    PropertyType.SHOP -> "Shop — a commercial shop or retail unit."
 }
 
 @Composable

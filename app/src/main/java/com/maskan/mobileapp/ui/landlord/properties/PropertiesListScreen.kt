@@ -38,6 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maskan.mobileapp.data.repository.FREE_PROPERTY_LIMIT
 import com.maskan.mobileapp.data.util.AmountFormatter
+import com.maskan.mobileapp.ui.coachmark.CoachMarkAnchorRegistry
+import com.maskan.mobileapp.ui.coachmark.CoachMarkSequencer
+import com.maskan.mobileapp.ui.coachmark.coachMarkAnchor
 import com.maskan.mobileapp.ui.components.EmptyState
 import com.maskan.mobileapp.ui.components.MaskanCard
 import com.maskan.mobileapp.ui.components.SegmentedControl
@@ -60,6 +63,8 @@ fun PropertiesScreen(
     onBuildingClick: (String) -> Unit,
     onAddClick: () -> Unit,
     onUpgradeRequired: () -> Unit,
+    anchorRegistry: CoachMarkAnchorRegistry,
+    coachMarkSequencer: CoachMarkSequencer,
 ) {
     val colors = MaskanTheme.colors
     val properties by viewModel.properties.collectAsStateWithLifecycle()
@@ -167,13 +172,17 @@ fun PropertiesScreen(
         }
 
         FloatingActionButton(
-            onClick = gatedAddClick,
+            onClick = {
+                coachMarkSequencer.tappedAddButton()
+                gatedAddClick()
+            },
             containerColor = colors.gradientStart,
             contentColor = androidx.compose.ui.graphics.Color.White,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 16.dp)
-                .padding(bottom = LocalLandlordContentBottomInset.current),
+                .padding(bottom = LocalLandlordContentBottomInset.current)
+                .coachMarkAnchor("addProperty", anchorRegistry),
         ) {
             Icon(Icons.Filled.Add, contentDescription = "Add Property")
         }

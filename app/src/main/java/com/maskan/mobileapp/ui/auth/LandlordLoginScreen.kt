@@ -1,5 +1,8 @@
 package com.maskan.mobileapp.ui.auth
 
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -51,6 +54,15 @@ fun LandlordLoginScreen(navController: NavHostController) {
 
     val isValid = email.isNotBlank() && password.isNotBlank()
 
+    // Safe to call on every successful login: once the user has answered (either way),
+    // Android answers from the cached decision without re-prompting.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     AuthScaffold(icon = Icons.Filled.Apartment, title = "Welcome back", subtitle = "Log in to manage your properties") {
         AppTextField(value = email, onValueChange = { email = it; error = null }, label = "Email", keyboardType = KeyboardType.Email)
         AppTextField(value = password, onValueChange = { password = it; error = null }, label = "Password", isPassword = true)
@@ -78,6 +90,7 @@ fun LandlordLoginScreen(navController: NavHostController) {
                     try {
                         container.authRepository.signInLandlord(email, password)
                         container.rolePreferences.setRole(UserRole.LANDLORD)
+                        requestNotificationPermissionIfNeeded()
                         navController.navigate(Routes.LANDLORD_SHELL) { popUpTo(0) { inclusive = true } }
                     } catch (t: Throwable) {
                         error = t.message ?: "Something went wrong. Please try again."
@@ -101,6 +114,7 @@ fun LandlordLoginScreen(navController: NavHostController) {
                         val idToken = requestGoogleIdToken(context)
                         container.authRepository.signInLandlordWithGoogle(idToken)
                         container.rolePreferences.setRole(UserRole.LANDLORD)
+                        requestNotificationPermissionIfNeeded()
                         navController.navigate(Routes.LANDLORD_SHELL) { popUpTo(0) { inclusive = true } }
                     } catch (t: Throwable) {
                         error = t.message ?: "Couldn't sign in with Google. Please try again."

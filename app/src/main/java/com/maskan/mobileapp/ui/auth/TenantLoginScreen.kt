@@ -1,5 +1,8 @@
 package com.maskan.mobileapp.ui.auth
 
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Text
@@ -34,6 +37,13 @@ fun TenantLoginScreen(navController: NavHostController) {
 
     val isValid = propertyId.isNotBlank() && password.isNotBlank()
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     AuthScaffold(icon = Icons.Filled.Person, title = "Tenant login", subtitle = "Use the Property ID and password provided by your landlord") {
         AppTextField(
             value = propertyId,
@@ -60,6 +70,7 @@ fun TenantLoginScreen(navController: NavHostController) {
                         val code = container.authRepository.signInTenant(propertyId, password)
                         container.rolePreferences.setRole(UserRole.TENANT)
                         container.rolePreferences.setTenantPropertyIdCode(code)
+                        requestNotificationPermissionIfNeeded()
                         navController.navigate(Routes.TENANT_SHELL) { popUpTo(0) { inclusive = true } }
                     } catch (t: Throwable) {
                         error = t.message ?: "Something went wrong. Please try again."

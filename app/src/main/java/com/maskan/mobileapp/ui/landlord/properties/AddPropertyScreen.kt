@@ -42,6 +42,8 @@ import com.maskan.mobileapp.data.model.PropertyType
 import com.maskan.mobileapp.data.repository.NewFlatInput
 import com.maskan.mobileapp.data.repository.NewPropertyInput
 import com.maskan.mobileapp.data.util.PropertyIdCodeGenerator
+import com.maskan.mobileapp.ui.coachmark.CoachMarkAnchorRegistry
+import com.maskan.mobileapp.ui.coachmark.coachMarkAnchor
 import com.maskan.mobileapp.ui.components.AppTextField
 import com.maskan.mobileapp.ui.components.GradientButton
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
@@ -61,7 +63,12 @@ private fun resolvedCode(flat: FlatFormState, buildingName: String, address: Str
     flat.manualCode ?: flat.session.derive(buildingName + address)
 
 @Composable
-fun AddPropertyScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: () -> Unit) {
+fun AddPropertyScreen(
+    viewModel: LandlordViewModel,
+    onDone: () -> Unit,
+    onCancel: () -> Unit,
+    anchorRegistry: CoachMarkAnchorRegistry,
+) {
     val colors = MaskanTheme.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -128,6 +135,7 @@ fun AddPropertyScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel
                                     flats.retainAll(listOf(flats.first()))
                                 }
                             },
+                            modifier = Modifier.coachMarkAnchor(type.name, anchorRegistry),
                         )
                     }
                 }
@@ -260,11 +268,11 @@ fun AddPropertyScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel
 }
 
 @Composable
-private fun TypeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun TypeChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaskanTheme.colors
     val brush = if (selected) colors.primaryGradient else androidx.compose.ui.graphics.SolidColor(colors.fieldBackground)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(50))
             .background(brush)
             .clickable(onClick = onClick)

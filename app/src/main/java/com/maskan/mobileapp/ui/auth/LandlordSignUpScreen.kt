@@ -1,5 +1,8 @@
 package com.maskan.mobileapp.ui.auth
 
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -42,6 +45,13 @@ fun LandlordSignUpScreen(navController: NavHostController) {
 
     val isValid = email.isNotBlank() && password.length >= 6 && password == confirmPassword
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     AuthScaffold(icon = Icons.Filled.PersonAddAlt, title = "Create account", subtitle = "Start managing your properties with Maskan") {
         AppTextField(value = email, onValueChange = { email = it; error = null }, label = "Email", keyboardType = KeyboardType.Email)
         AppTextField(value = password, onValueChange = { password = it; error = null }, label = "Password (min 6 characters)", isPassword = true)
@@ -63,6 +73,7 @@ fun LandlordSignUpScreen(navController: NavHostController) {
                     try {
                         container.authRepository.signUpLandlord(email, password)
                         container.rolePreferences.setRole(UserRole.LANDLORD)
+                        requestNotificationPermissionIfNeeded()
                         navController.navigate(Routes.LANDLORD_SHELL) { popUpTo(0) { inclusive = true } }
                     } catch (t: Throwable) {
                         error = t.message ?: "Something went wrong. Please try again."

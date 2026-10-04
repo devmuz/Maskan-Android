@@ -2,6 +2,7 @@ package com.maskan.mobileapp.di
 
 import android.content.Context
 import androidx.core.content.pm.PackageInfoCompat
+import com.maskan.mobileapp.data.prefs.CoachmarkPreferences
 import com.maskan.mobileapp.data.prefs.RolePreferences
 import com.maskan.mobileapp.data.prefs.ThemePreferences
 import com.maskan.mobileapp.data.repository.AuthRepository
@@ -40,6 +41,7 @@ class AppContainer(context: Context) {
 
     val rolePreferences = RolePreferences(appContext)
     val themePreferences = ThemePreferences(appContext)
+    val coachmarkPreferences = CoachmarkPreferences(appContext)
     val authRepository = AuthRepository(firebaseAuth, functions)
     val propertyRepository = PropertyRepository(firestore, storage)
     val tenantRepository = TenantRepository(firestore, functions)

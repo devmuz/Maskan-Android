@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -189,14 +190,16 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PaidBy.entries.forEach { option ->
                             val selected = option == paidBy
+                            val brush = if (selected) colors.primaryGradient else androidx.compose.ui.graphics.SolidColor(colors.fieldBackground)
                             Box(
                                 modifier = Modifier
-                                    .background(if (selected) colors.gradientStart else colors.fieldBackground, RoundedCornerShape(50))
+                                    .clip(RoundedCornerShape(50))
+                                    .background(brush)
                                     .let { if (!paidByLocked) it.clickable { paidBy = option } else it }
                                     .alpha(if (paidByLocked && !selected) 0.4f else 1f)
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    .padding(horizontal = 18.dp, vertical = 10.dp),
                             ) {
-                                Text(text = option.label, style = MaskanType.secondary, color = if (selected) Color.White else colors.textSecondary)
+                                Text(text = option.label, style = MaskanType.bodyMedium, color = if (selected) Color.White else colors.textSecondary)
                             }
                         }
                     }

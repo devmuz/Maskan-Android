@@ -13,7 +13,7 @@ android {
         applicationId = "com.maskan.mobileapp"
         minSdk = 24
         targetSdk = 37
-        versionCode = 8
+        versionCode = 9
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
