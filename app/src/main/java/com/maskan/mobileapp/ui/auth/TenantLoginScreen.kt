@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.navigation.NavHostController
 import com.maskan.mobileapp.data.prefs.UserRole
+import com.maskan.mobileapp.data.util.friendlyAuthErrorMessage
 import com.maskan.mobileapp.di.LocalAppContainer
 import com.maskan.mobileapp.ui.components.AppTextField
 import com.maskan.mobileapp.ui.components.GradientButton
@@ -73,7 +74,7 @@ fun TenantLoginScreen(navController: NavHostController) {
                         requestNotificationPermissionIfNeeded()
                         navController.navigate(Routes.TENANT_SHELL) { popUpTo(0) { inclusive = true } }
                     } catch (t: Throwable) {
-                        error = t.message ?: "Something went wrong. Please try again."
+                        error = friendlyAuthErrorMessage(t)
                     } finally {
                         isLoading = false
                     }

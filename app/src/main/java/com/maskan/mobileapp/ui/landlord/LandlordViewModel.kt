@@ -66,7 +66,9 @@ class LandlordViewModel(private val container: AppContainer) : ViewModel() {
             }
         }
         viewModelScope.launch {
-            container.landlordRepository.ensureProfileExists(id, container.authRepository.currentUser?.email)
+            val providerId = container.authRepository.currentUser?.providerData?.firstOrNull()?.providerId
+            val loginWith = if (providerId == "google.com") "google" else "email"
+            container.landlordRepository.ensureProfileExists(id, container.authRepository.currentUser?.email, loginWith)
             container.landlordRepository.saveFcmTokenIfAvailable(id)
         }
         container.purchaseRepository.activeLandlordId = id

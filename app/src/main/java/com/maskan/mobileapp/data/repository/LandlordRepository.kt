@@ -56,7 +56,7 @@ class LandlordRepository(private val firestore: FirebaseFirestore) {
      * defaults to a best-guess from the device's region, falling back to USD
      * (02-data-models.md).
      */
-    suspend fun ensureProfileExists(landlordId: String, email: String?) {
+    suspend fun ensureProfileExists(landlordId: String, email: String?, loginWith: String) {
         val doc = landlordsCollection.document(landlordId).get().await()
         if (doc.exists()) return
         val guessedCurrency = runCatching { Locale.getDefault().let { java.util.Currency.getInstance(it).currencyCode } }
@@ -65,6 +65,7 @@ class LandlordRepository(private val firestore: FirebaseFirestore) {
             hashMapOf(
                 "email" to email.orEmpty(),
                 "currencyCode" to guessedCurrency,
+                "loginWith" to loginWith,
             ),
         ).await()
     }

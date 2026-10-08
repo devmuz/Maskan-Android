@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.maskan.mobileapp.data.util.friendlyAuthErrorMessage
 import com.maskan.mobileapp.di.LocalAppContainer
 import com.maskan.mobileapp.ui.components.AppTextField
 import com.maskan.mobileapp.ui.components.GradientButton
@@ -98,7 +99,7 @@ fun ForgotPasswordSheetContent(prefilledEmail: String, onDone: () -> Unit) {
                             container.authRepository.sendPasswordReset(email)
                             succeeded = true
                         } catch (t: Throwable) {
-                            error = t.message ?: "Something went wrong. Please try again."
+                            error = friendlyAuthErrorMessage(t)
                         } finally {
                             isLoading = false
                         }

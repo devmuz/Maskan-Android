@@ -22,6 +22,8 @@ data class Landlord(
     val proSource: String? = null,
     /** Current device's FCM registration token (feature_push.md) — read by the `onNewServiceRequest` Cloud Function. */
     val fcmToken: String? = null,
+    /** How the account was first created — "email" / "google" / "apple" (iOS only). Written once, never overwritten by later logins. */
+    val loginWith: String? = null,
 ) {
     /**
      * Pro status resolution order (02-data-models.md): proOverride first (no

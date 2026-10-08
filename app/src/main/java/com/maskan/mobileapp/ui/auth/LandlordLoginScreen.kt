@@ -3,6 +3,7 @@ package com.maskan.mobileapp.ui.auth
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.maskan.mobileapp.data.prefs.UserRole
+import com.maskan.mobileapp.data.util.friendlyAuthErrorMessage
 import com.maskan.mobileapp.di.LocalAppContainer
 import com.maskan.mobileapp.ui.components.AppTextField
 import com.maskan.mobileapp.ui.components.GoogleSignInButton
@@ -93,7 +95,7 @@ fun LandlordLoginScreen(navController: NavHostController) {
                         requestNotificationPermissionIfNeeded()
                         navController.navigate(Routes.LANDLORD_SHELL) { popUpTo(0) { inclusive = true } }
                     } catch (t: Throwable) {
-                        error = t.message ?: "Something went wrong. Please try again."
+                        error = friendlyAuthErrorMessage(t)
                     } finally {
                         isLoading = false
                     }
@@ -116,8 +118,10 @@ fun LandlordLoginScreen(navController: NavHostController) {
                         container.rolePreferences.setRole(UserRole.LANDLORD)
                         requestNotificationPermissionIfNeeded()
                         navController.navigate(Routes.LANDLORD_SHELL) { popUpTo(0) { inclusive = true } }
+                    } catch (t: GetCredentialCancellationException) {
+                        // User dismissed the account picker — not a real error, stay silent.
                     } catch (t: Throwable) {
-                        error = t.message ?: "Couldn't sign in with Google. Please try again."
+                        error = friendlyAuthErrorMessage(t)
                     } finally {
                         isGoogleLoading = false
                     }
