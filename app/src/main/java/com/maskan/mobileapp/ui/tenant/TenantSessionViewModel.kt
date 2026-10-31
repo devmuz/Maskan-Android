@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.maskan.mobileapp.data.model.Bill
 import com.maskan.mobileapp.data.model.BillStatus
+import com.maskan.mobileapp.data.model.BillType
+import com.maskan.mobileapp.data.model.Frequency
 import com.maskan.mobileapp.data.model.PaidBy
 import com.maskan.mobileapp.data.model.Payment
 import com.maskan.mobileapp.data.model.Property
@@ -12,6 +14,7 @@ import com.maskan.mobileapp.data.model.ServiceRequest
 import com.maskan.mobileapp.data.model.ServiceRequestCategory
 import com.maskan.mobileapp.data.model.ServiceRequestStatus
 import com.maskan.mobileapp.data.model.Tenant
+import com.maskan.mobileapp.data.util.PeriodFormatter
 import com.maskan.mobileapp.di.AppContainer
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,9 +67,34 @@ class TenantSessionViewModel(private val container: AppContainer) : ViewModel() 
         .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else container.billingRepository.paymentsForPropertyFlow(id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val pendingBills: StateFlow<List<Bill>> = bills
-        .map { list -> list.filter { it.status != BillStatus.PAID }.sortedBy { it.dueDate } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    /**
+     * This month's rent when the landlord hasn't logged a rent bill yet. The
+     * landlord's Tenant Detail already shows the monthly rent as pending in
+     * that case, so the tenant sees the same amount here (02-data-models.md →
+     * "Tenant-side synthesized current-month rent"). It isn't in Firestore
+     * until the tenant reports paying it — see [submitPaymentForVerification].
+     */
+    val upcomingRentBill: StateFlow<Bill?> = combine(bills, _tenant, property) { list, t, p ->
+        val period = PeriodFormatter.currentMonthRentPeriod()
+        if (t == null || !t.isActive || p == null || p.monthlyRent <= 0.0) return@combine null
+        if (list.any { it.type == BillType.RENT && it.period == period }) return@combine null
+        Bill(
+            id = UPCOMING_RENT_BILL_ID,
+            propertyId = p.id,
+            landlordId = p.landlordId,
+            typeRaw = BillType.RENT.raw,
+            period = period,
+            amount = p.monthlyRent,
+            statusRaw = BillStatus.PENDING.raw,
+            dueDate = PeriodFormatter.rentDueDate(t.rentDueDay),
+            frequencyRaw = Frequency.MONTHLY.raw,
+            paidByRaw = PaidBy.TENANT.raw,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val pendingBills: StateFlow<List<Bill>> = combine(bills, upcomingRentBill) { list, upcoming ->
+        (list.filter { it.status != BillStatus.PAID } + listOfNotNull(upcoming)).sortedBy { it.dueDate }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val paidBills: StateFlow<List<Bill>> = bills
         .map { list -> list.filter { it.status == BillStatus.PAID }.sortedByDescending { it.paidAt ?: it.dueDate } }
@@ -144,7 +172,10 @@ class TenantSessionViewModel(private val container: AppContainer) : ViewModel() 
     }
 
     suspend fun submitPaymentForVerification(bill: Bill, amount: Double, paidDate: Date, method: String, notes: String?) {
-        container.billingRepository.submitPaymentForVerification(bill, amount, paidDate, method, notes)
+        container.billingRepository.submitPaymentForVerification(
+            bill, amount, paidDate, method, notes,
+            createBill = bill.id == UPCOMING_RENT_BILL_ID,
+        )
     }
 
     suspend fun changePassword(currentPassword: String, newPassword: String) {
@@ -156,8 +187,24 @@ class TenantSessionViewModel(private val container: AppContainer) : ViewModel() 
         container.authRepository.signOut()
     }
 
+    companion object {
+        /** Route/lookup ID for [upcomingRentBill], which has no Firestore doc ID. */
+        const val UPCOMING_RENT_BILL_ID = "upcoming-rent"
+    }
+
     class Factory(private val container: AppContainer) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T = TenantSessionViewModel(container) as T
     }
+}
+
+/**
+ * Resolves a bill route ID against the tenant's bills. The synthesized rent
+ * bill's ID resolves to it while it exists, then to the real rent bill for the
+ * same period once the tenant's submission has created it — so Bill Detail
+ * flips to "Verifying…" instead of "Bill not found".
+ */
+fun resolveTenantBill(billId: String, bills: List<Bill>, upcomingRent: Bill?): Bill? {
+    if (billId != TenantSessionViewModel.UPCOMING_RENT_BILL_ID) return bills.find { it.id == billId }
+    return upcomingRent ?: bills.find { it.type == BillType.RENT && it.period == PeriodFormatter.currentMonthRentPeriod() }
 }

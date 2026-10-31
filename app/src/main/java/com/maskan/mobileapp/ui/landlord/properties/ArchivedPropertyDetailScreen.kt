@@ -31,7 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import com.maskan.mobileapp.ui.components.PropertyPhoto
 import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.ui.components.BillExpenseRow
 import com.maskan.mobileapp.ui.components.MaskanCard
@@ -94,11 +94,9 @@ fun ArchivedPropertyDetailScreen(
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
             if (!property.photoUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = property.photoUrl,
-                    contentDescription = null,
+                PropertyPhoto(
+                    url = property.photoUrl!!,
                     modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(MaskanDimens.heroCornerRadius)),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 )
             }
 

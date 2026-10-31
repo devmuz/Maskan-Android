@@ -225,9 +225,34 @@ class BillingRepository(private val firestore: FirebaseFirestore) {
         billsCollection.document(billId).update("status", "pending").await()
     }
 
-    suspend fun deleteBill(billId: String) {
-        billsCollection.document(billId).delete().await()
+    suspend fun updatePaidBy(billId: String, paidBy: PaidBy) {
+        billsCollection.document(billId).update("paidBy", paidBy.raw).await()
     }
+
+    /**
+     * Deletes the bill and every payment recorded against it in one batch, so
+     * no orphaned payment keeps being counted in charts/history
+     * (02-data-models.md).
+     */
+    suspend fun deleteBill(bill: Bill) {
+        val batch = firestore.batch()
+        batch.delete(billsCollection.document(bill.id))
+        paymentsForBill(bill).documents.forEach { batch.delete(it.reference) }
+        batch.commit().await()
+    }
+
+    /**
+     * The `propertyId` filter is required: Firestore rules aren't filters, and
+     * a `billId`-only query can't be proven against the payments read rule
+     * (`landlordId == uid || hasPropertyAccess(propertyId)`), so it fails with
+     * PERMISSION_DENIED even when no payment exists.
+     */
+    private suspend fun paymentsForBill(bill: Bill) =
+        paymentsCollection
+            .whereEqualTo("propertyId", bill.propertyId)
+            .whereEqualTo("billId", bill.id)
+            .get()
+            .await()
 
     /**
      * Ad-hoc listener for the tenant app (no shared session-scoped service
@@ -262,7 +287,7 @@ class BillingRepository(private val firestore: FirebaseFirestore) {
      * created it.
      */
     suspend fun approvePayment(bill: Bill) {
-        val pending = paymentsCollection.whereEqualTo("billId", bill.id).get().await()
+        val pending = paymentsForBill(bill)
             .toObjects(Payment::class.java)
             .maxByOrNull { it.paidDate ?: Date(0) }
             ?: error("No pending payment found for this bill")
@@ -271,7 +296,7 @@ class BillingRepository(private val firestore: FirebaseFirestore) {
 
     /** Deletes the pending payment doc and reverts the bill -> "pending", as if the tenant's submission never happened. */
     suspend fun rejectPayment(bill: Bill) {
-        val pendingDoc = paymentsCollection.whereEqualTo("billId", bill.id).get().await().documents
+        val pendingDoc = paymentsForBill(bill).documents
             .maxByOrNull { it.getDate("paidDate")?.time ?: 0L }
         val batch = firestore.batch()
         pendingDoc?.let { batch.delete(it.reference) }
@@ -285,14 +310,37 @@ class BillingRepository(private val firestore: FirebaseFirestore) {
      * and creates a pending `payments` doc. The bill stays `verifying` until
      * the landlord approves (-> paid) or rejects (-> back to pending, payment
      * doc deleted) — see `07-landlord-bills.md`.
+     *
+     * When [createBill] is true (the tenant's synthesized current-month rent,
+     * which has no Firestore doc yet) the bill doc is created here directly
+     * as `"verifying"` — the only shape the rules let a tenant create.
      */
-    suspend fun submitPaymentForVerification(bill: Bill, amount: Double, paidDate: Date, method: String, notes: String?) {
+    suspend fun submitPaymentForVerification(bill: Bill, amount: Double, paidDate: Date, method: String, notes: String?, createBill: Boolean = false) {
         val batch = firestore.batch()
-        batch.update(billsCollection.document(bill.id), mapOf("status" to "verifying", "amount" to amount))
+        val billRef = if (createBill) billsCollection.document() else billsCollection.document(bill.id)
+        if (createBill) {
+            batch.set(
+                billRef,
+                hashMapOf(
+                    "propertyId" to bill.propertyId,
+                    "landlordId" to bill.landlordId,
+                    "type" to bill.typeRaw,
+                    "period" to bill.period,
+                    "amount" to amount,
+                    "status" to "verifying",
+                    "dueDate" to bill.dueDate,
+                    "frequency" to bill.frequencyRaw,
+                    "paidBy" to PaidBy.TENANT.raw,
+                    "createdAt" to FieldValue.serverTimestamp(),
+                ),
+            )
+        } else {
+            batch.update(billRef, mapOf("status" to "verifying", "amount" to amount))
+        }
         batch.set(
             paymentsCollection.document(),
             hashMapOf(
-                "billId" to bill.id,
+                "billId" to billRef.id,
                 "propertyId" to bill.propertyId,
                 "landlordId" to bill.landlordId,
                 "amount" to amount,

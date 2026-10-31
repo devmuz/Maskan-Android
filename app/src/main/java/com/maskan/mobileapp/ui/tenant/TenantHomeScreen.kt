@@ -47,14 +47,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import com.maskan.mobileapp.data.model.BillStatus
+import com.maskan.mobileapp.data.model.BillType
 import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.ui.components.EmptyState
 import com.maskan.mobileapp.ui.components.MaskanCard
+import com.maskan.mobileapp.ui.components.PropertyPhoto
 import com.maskan.mobileapp.ui.components.StatusBadge
 import com.maskan.mobileapp.ui.theme.MaskanDimens
 import com.maskan.mobileapp.ui.theme.MaskanTheme
@@ -71,6 +72,7 @@ fun TenantHomeScreen(
     onOpenHistory: () -> Unit,
     onOpenRequests: () -> Unit,
     onBillClick: (String) -> Unit,
+    onRequestClick: (String) -> Unit,
 ) {
     val colors = MaskanTheme.colors
     val activity = LocalContext.current as? Activity
@@ -90,6 +92,8 @@ fun TenantHomeScreen(
         ?.let { "Hello, $it" } ?: "Hi!"
 
     val nothingAtAll = pendingBills.isEmpty() && paidBills.isEmpty() && requests.isEmpty()
+    // Oldest rent bill (real or synthesized) the tenant can still report paying.
+    val payableRentBill = pendingBills.firstOrNull { it.type == BillType.RENT && it.status != BillStatus.VERIFYING }
 
     Scaffold(
         containerColor = colors.background,
@@ -144,6 +148,21 @@ fun TenantHomeScreen(
                             color = Color.White.copy(alpha = 0.9f),
                         )
                     }
+                    payableRentBill?.let { rentBill ->
+                        Row(
+                            modifier = Modifier
+                                .padding(top = 12.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(Color.White)
+                                .clickable { onBillClick(rentBill.id) }
+                                .padding(horizontal = 16.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = colors.gradientStart, modifier = Modifier.size(18.dp))
+                            Text(text = "I've Paid Rent", style = MaskanType.bodyMedium, color = colors.gradientStart)
+                        }
+                    }
                 }
 
                 // 2. Property card
@@ -151,11 +170,9 @@ fun TenantHomeScreen(
                     val prop = property!!
                     MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
                         if (!prop.photoUrl.isNullOrBlank()) {
-                            AsyncImage(
-                                model = prop.photoUrl,
-                                contentDescription = null,
+                            PropertyPhoto(
+                                url = prop.photoUrl!!,
                                 modifier = Modifier.fillMaxWidth().height(168.dp).clip(RoundedCornerShape(topStart = MaskanDimens.cornerRadius, topEnd = MaskanDimens.cornerRadius)),
-                                contentScale = ContentScale.Crop,
                             )
                         }
                         Column(modifier = Modifier.padding(MaskanDimens.cardPadding)) {
@@ -251,7 +268,9 @@ fun TenantHomeScreen(
                                     )
                                 }
                             }
-                            requests.take(3).forEach { request -> RequestRow(request = request) }
+                            requests.take(3).forEach { request ->
+                                RequestRow(request = request, modifier = Modifier.clickable { onRequestClick(request.id) })
+                            }
                         }
                     }
                 }

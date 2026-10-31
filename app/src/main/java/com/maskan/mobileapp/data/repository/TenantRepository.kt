@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.data.repository
 
+import com.maskan.mobileapp.data.model.IdentityDocumentType
 import com.maskan.mobileapp.data.model.Property
 import com.maskan.mobileapp.data.model.Tenant
 import com.maskan.mobileapp.data.util.CloudFunctionEnv
@@ -123,7 +124,18 @@ class TenantRepository(private val firestore: FirebaseFirestore, private val fun
      * plaintext) and sets the property's `occupied = true` in one batch. The
      * plaintext password is returned once and never stored (02-data-models.md).
      */
-    suspend fun assignTenant(landlordId: String, propertyId: String, name: String, contact: String, moveInDate: Date): AssignedTenant {
+    suspend fun assignTenant(
+        landlordId: String,
+        propertyId: String,
+        name: String,
+        contact: String,
+        moveInDate: Date,
+        identityDocumentType: IdentityDocumentType? = null,
+        identityDocumentNumber: String? = null,
+        permanentAddress: String? = null,
+        profession: String? = null,
+        alternateContact: String? = null,
+    ): AssignedTenant {
         val property = propertiesCollection.document(propertyId).get().await().toObject(Property::class.java)
             ?: error("Property not found")
 
@@ -153,6 +165,11 @@ class TenantRepository(private val firestore: FirebaseFirestore, private val fun
                 "createdAt" to FieldValue.serverTimestamp(),
                 "landlordId" to landlordId,
                 "status" to "active",
+                "identityDocumentType" to identityDocumentType?.raw,
+                "identityDocumentNumber" to identityDocumentNumber,
+                "permanentAddress" to permanentAddress,
+                "profession" to profession,
+                "alternateContact" to alternateContact,
             ),
         )
         batch.update(propertiesCollection.document(propertyId), "occupied", true)
@@ -170,13 +187,39 @@ class TenantRepository(private val firestore: FirebaseFirestore, private val fun
             passwordSalt = salt,
             landlordId = landlordId,
             statusRaw = "active",
+            identityDocumentTypeRaw = identityDocumentType?.raw,
+            identityDocumentNumber = identityDocumentNumber,
+            permanentAddress = permanentAddress,
+            profession = profession,
+            alternateContact = alternateContact,
         )
         return AssignedTenant(tenant, tempPassword)
     }
 
-    suspend fun updateTenant(tenantId: String, name: String, contact: String, moveInDate: Date) {
+    suspend fun updateTenant(
+        tenantId: String,
+        name: String,
+        contact: String,
+        moveInDate: Date,
+        identityDocumentType: IdentityDocumentType? = null,
+        identityDocumentNumber: String? = null,
+        permanentAddress: String? = null,
+        profession: String? = null,
+        alternateContact: String? = null,
+    ) {
         tenantsCollection.document(tenantId)
-            .update(mapOf("name" to name, "contact" to contact, "moveInDate" to moveInDate))
+            .update(
+                mapOf(
+                    "name" to name,
+                    "contact" to contact,
+                    "moveInDate" to moveInDate,
+                    "identityDocumentType" to identityDocumentType?.raw,
+                    "identityDocumentNumber" to identityDocumentNumber,
+                    "permanentAddress" to permanentAddress,
+                    "profession" to profession,
+                    "alternateContact" to alternateContact,
+                ),
+            )
             .await()
     }
 

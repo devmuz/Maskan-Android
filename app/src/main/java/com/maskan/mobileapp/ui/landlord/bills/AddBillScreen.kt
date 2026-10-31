@@ -46,7 +46,7 @@ import com.maskan.mobileapp.data.util.PeriodFormatter
 import com.maskan.mobileapp.data.util.toDate
 import com.maskan.mobileapp.data.util.toLocalDate
 import com.maskan.mobileapp.ui.components.AppTextField
-import com.maskan.mobileapp.ui.components.SegmentedControl
+import com.maskan.mobileapp.ui.components.FilterChipBar
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
 import com.maskan.mobileapp.ui.landlord.billTypeIcon
 import com.maskan.mobileapp.ui.theme.MaskanDimens
@@ -178,7 +178,7 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
                         }
                     }
                 }
-                SegmentedControl(
+                FilterChipBar(
                     options = listOf(Frequency.MONTHLY, Frequency.ANNUAL, Frequency.ONE_TIME),
                     selected = frequency,
                     onSelect = { frequency = it },
@@ -203,6 +203,13 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
                             }
                         }
                     }
+                    Text(
+                        text = if (paidBy == PaidBy.TENANT) "Shown to the tenant, who can mark it paid for you to approve."
+                        else "You pay this yourself. It won't be shown to the tenant.",
+                        style = MaskanType.caption,
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
                 }
                 AppTextField(value = amount, onValueChange = { amount = it.filter { c -> c.isDigit() || c == '.' } }, label = "Amount", keyboardType = KeyboardType.Number)
             }

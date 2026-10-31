@@ -1,6 +1,7 @@
 package com.maskan.mobileapp.ui.tenant
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,7 +34,7 @@ import com.maskan.mobileapp.ui.theme.MaskanType
 
 /** Full list, newest first — no status filter, unlike the landlord inbox (09-tenant-app.md). */
 @Composable
-fun TenantRequestsScreen(viewModel: TenantSessionViewModel, onBack: () -> Unit, onAddRequest: () -> Unit) {
+fun TenantRequestsScreen(viewModel: TenantSessionViewModel, onBack: () -> Unit, onAddRequest: () -> Unit, onRequestClick: (String) -> Unit) {
     val colors = MaskanTheme.colors
     val requests by viewModel.requests.collectAsStateWithLifecycle()
 
@@ -68,7 +69,9 @@ fun TenantRequestsScreen(viewModel: TenantSessionViewModel, onBack: () -> Unit, 
                     verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
                 ) {
                     MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                        requests.forEach { request -> RequestRow(request = request) }
+                        requests.forEach { request ->
+                            RequestRow(request = request, modifier = Modifier.clickable { onRequestClick(request.id) })
+                        }
                     }
                     // Extra bottom spacing so content doesn't sit under the FAB.
                     Column(modifier = Modifier.padding(bottom = 72.dp)) {}

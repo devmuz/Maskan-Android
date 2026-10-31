@@ -26,11 +26,14 @@ object TenantRoutes {
 
     private const val BILL_DETAIL_BASE = "tenant_bill_detail"
     private const val SUBMIT_PAYMENT_BASE = "tenant_submit_payment"
+    private const val REQUEST_DETAIL_BASE = "tenant_request_detail"
     const val BILL_DETAIL = "$BILL_DETAIL_BASE/{billId}"
     const val SUBMIT_PAYMENT = "$SUBMIT_PAYMENT_BASE/{billId}"
+    const val REQUEST_DETAIL = "$REQUEST_DETAIL_BASE/{requestId}"
 
     fun billDetail(billId: String) = "$BILL_DETAIL_BASE/$billId"
     fun submitPayment(billId: String) = "$SUBMIT_PAYMENT_BASE/$billId"
+    fun requestDetail(requestId: String) = "$REQUEST_DETAIL_BASE/$requestId"
 }
 
 @Composable
@@ -48,6 +51,17 @@ fun TenantShellScreen(onSignedOut: () -> Unit) {
                 onOpenHistory = { navController.navigate(TenantRoutes.HISTORY) },
                 onOpenRequests = { navController.navigate(TenantRoutes.REQUESTS) },
                 onBillClick = { navController.navigate(TenantRoutes.billDetail(it)) },
+                onRequestClick = { navController.navigate(TenantRoutes.requestDetail(it)) },
+            )
+        }
+        composable(
+            TenantRoutes.REQUEST_DETAIL,
+            arguments = listOf(navArgument("requestId") { type = NavType.StringType }),
+        ) { entry ->
+            TenantRequestDetailScreen(
+                viewModel = viewModel,
+                requestId = entry.arguments?.getString("requestId").orEmpty(),
+                onBack = { navController.popBackStack() },
             )
         }
         composable(
@@ -84,6 +98,7 @@ fun TenantShellScreen(onSignedOut: () -> Unit) {
                 viewModel = viewModel,
                 onBack = { navController.popBackStack() },
                 onAddRequest = { navController.navigate(TenantRoutes.ADD_REQUEST) },
+                onRequestClick = { navController.navigate(TenantRoutes.requestDetail(it)) },
             )
         }
         composable(TenantRoutes.ADD_REQUEST) {

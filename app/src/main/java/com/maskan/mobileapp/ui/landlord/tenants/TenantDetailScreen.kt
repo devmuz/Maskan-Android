@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.AlertDialog
@@ -40,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.height
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -74,6 +77,7 @@ fun TenantDetailScreen(
     onEdit: (String) -> Unit,
     onViewAllPayments: (String) -> Unit,
     onRecordPayment: (String) -> Unit,
+    onDocumentsClick: (String) -> Unit,
 ) {
     val colors = MaskanTheme.colors
     val context = LocalContext.current
@@ -181,6 +185,34 @@ fun TenantDetailScreen(
                 }
             }
 
+            if (hasExtraDetails(tenant)) {
+                MaskanCard(modifier = Modifier.fillMaxWidth()) {
+                    Text(text = "DETAILS", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
+                    val rows = buildList {
+                        tenant.identityDocumentType?.let { add(it.displayName to (tenant.identityDocumentNumber?.takeIf { n -> n.isNotBlank() } ?: "—")) }
+                        tenant.profession?.takeIf { it.isNotBlank() }?.let { add("Profession" to it) }
+                        tenant.alternateContact?.takeIf { it.isNotBlank() }?.let { add("Alternate Number" to it) }
+                        tenant.permanentAddress?.takeIf { it.isNotBlank() }?.let { add("Permanent Address" to it) }
+                    }
+                    rows.forEachIndexed { index, (label, value) ->
+                        if (index > 0) Spacer(modifier = androidx.compose.ui.Modifier.height(8.dp))
+                        DetailRow(label, value)
+                    }
+                }
+            }
+
+            MaskanCard(
+                modifier = Modifier.fillMaxWidth().clickable { onDocumentsClick(tenant.id) },
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Description, contentDescription = null, tint = colors.gradientStart)
+                        Text(text = "Documents", style = MaskanType.bodyMedium, color = colors.textPrimary, modifier = Modifier.padding(start = 10.dp))
+                    }
+                    Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
+                }
+            }
+
             if (tenant.isActive) {
                 MaskanCard(modifier = Modifier.fillMaxWidth()) {
                     DetailRow("Monthly rent", AmountFormatter.format(property.monthlyRent, currencyCode))
@@ -189,7 +221,7 @@ fun TenantDetailScreen(
                         Box {
                             Text(text = tenant.rentDueDay?.toString() ?: "Not set", style = MaskanType.bodyMedium, color = colors.gradientStart)
                             DropdownMenu(expanded = showDueDayMenu, onDismissRequest = { showDueDayMenu = false }) {
-                                (1..28).forEach { day ->
+                                (1..30).forEach { day ->
                                     DropdownMenuItem(text = { Text(day.toString()) }, onClick = {
                                         showDueDayMenu = false
                                         scope.launch { viewModel.tenantRepository.setRentDueDay(tenant.id, day) }
@@ -341,7 +373,7 @@ fun TenantDetailScreen(
                     showAdjustAmount = false
                     if (amount != null) {
                         scope.launch {
-                            viewModel.billingRepository.setPendingAmount(property.landlordId, property.id, amount, currentBill?.dueDate ?: Date())
+                            viewModel.billingRepository.setPendingAmount(property.landlordId, property.id, amount, currentBill?.dueDate ?: PeriodFormatter.rentDueDate(tenant.rentDueDay))
                         }
                     }
                 }) { Text("Save") }
@@ -417,6 +449,12 @@ fun TenantDetailScreen(
         )
     }
 }
+
+private fun hasExtraDetails(tenant: com.maskan.mobileapp.data.model.Tenant): Boolean =
+    tenant.identityDocumentType != null ||
+        !tenant.profession.isNullOrBlank() ||
+        !tenant.alternateContact.isNullOrBlank() ||
+        !tenant.permanentAddress.isNullOrBlank()
 
 @Composable
 private fun DetailRow(label: String, value: String) {

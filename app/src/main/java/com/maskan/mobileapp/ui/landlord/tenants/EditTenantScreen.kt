@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.maskan.mobileapp.data.model.IdentityDocumentType
 import com.maskan.mobileapp.ui.components.AppTextField
 import com.maskan.mobileapp.ui.components.GradientButton
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
@@ -61,6 +62,12 @@ fun EditTenantScreen(viewModel: LandlordViewModel, tenantId: String, onDone: () 
     var isSaving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    var identityDocumentType by remember { mutableStateOf<IdentityDocumentType?>(null) }
+    var identityDocumentNumber by remember { mutableStateOf("") }
+    var profession by remember { mutableStateOf("") }
+    var alternateContact by remember { mutableStateOf("") }
+    var permanentAddress by remember { mutableStateOf("") }
+
     var moveOutDate by remember { mutableStateOf(Date()) }
     var showMoveOutDatePicker by remember { mutableStateOf(false) }
     var showMoveOutConfirm by remember { mutableStateOf(false) }
@@ -70,6 +77,11 @@ fun EditTenantScreen(viewModel: LandlordViewModel, tenantId: String, onDone: () 
             name = tenant.name
             contact = tenant.contact
             tenant.moveInDate?.let { moveInDate = it }
+            identityDocumentType = tenant.identityDocumentType
+            identityDocumentNumber = tenant.identityDocumentNumber.orEmpty()
+            profession = tenant.profession.orEmpty()
+            alternateContact = tenant.alternateContact.orEmpty()
+            permanentAddress = tenant.permanentAddress.orEmpty()
             initialized = true
         }
     }
@@ -110,6 +122,19 @@ fun EditTenantScreen(viewModel: LandlordViewModel, tenantId: String, onDone: () 
                     Text(text = dateFormat.format(moveInDate), style = MaskanType.bodyMedium, color = colors.gradientStart)
                 }
 
+                OptionalTenantDetailsSection(
+                    identityDocumentType = identityDocumentType,
+                    onIdentityDocumentTypeChange = { identityDocumentType = it },
+                    identityDocumentNumber = identityDocumentNumber,
+                    onIdentityDocumentNumberChange = { identityDocumentNumber = it },
+                    profession = profession,
+                    onProfessionChange = { profession = it },
+                    alternateContact = alternateContact,
+                    onAlternateContactChange = { alternateContact = it },
+                    permanentAddress = permanentAddress,
+                    onPermanentAddressChange = { permanentAddress = it },
+                )
+
                 error?.let { Text(text = it, style = MaskanType.secondary, color = colors.danger) }
 
                 GradientButton(
@@ -122,7 +147,17 @@ fun EditTenantScreen(viewModel: LandlordViewModel, tenantId: String, onDone: () 
                         error = null
                         scope.launch {
                             try {
-                                viewModel.tenantRepository.updateTenant(tenant.id, name, contact, moveInDate)
+                                viewModel.tenantRepository.updateTenant(
+                                    tenantId = tenant.id,
+                                    name = name,
+                                    contact = contact,
+                                    moveInDate = moveInDate,
+                                    identityDocumentType = identityDocumentType,
+                                    identityDocumentNumber = identityDocumentNumber.trim().ifBlank { null },
+                                    permanentAddress = permanentAddress.trim().ifBlank { null },
+                                    profession = profession.trim().ifBlank { null },
+                                    alternateContact = alternateContact.trim().ifBlank { null },
+                                )
                                 onDone()
                             } catch (t: Throwable) {
                                 error = t.message ?: "Couldn't save changes."

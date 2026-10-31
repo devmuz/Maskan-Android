@@ -1,5 +1,8 @@
 package com.maskan.mobileapp.ui.landlord.properties
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,7 +14,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -24,17 +32,25 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import com.maskan.mobileapp.data.repository.PropertyRepository
 import com.maskan.mobileapp.data.repository.SharedBuildingEdits
 import com.maskan.mobileapp.ui.components.AppTextField
 import com.maskan.mobileapp.ui.components.GradientButton
+import com.maskan.mobileapp.ui.components.PropertyPhoto
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
 import com.maskan.mobileapp.ui.theme.MaskanDimens
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Building-level fields apply to every flat sharing the building; unit name
@@ -58,6 +74,15 @@ fun EditPropertyScreen(viewModel: LandlordViewModel, propertyId: String, onDone:
     var isSaving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var initialized by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var newPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var photoRemoved by remember { mutableStateOf(false) }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            newPhotoUri = uri
+            photoRemoved = false
+        }
+    }
 
     LaunchedEffect(property?.id) {
         if (property != null && !initialized) {
@@ -98,6 +123,54 @@ fun EditPropertyScreen(viewModel: LandlordViewModel, propertyId: String, onDone:
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = MaskanDimens.screenHPadding),
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
+            val currentPhotoUrl = property.photoUrl?.takeIf { it.isNotBlank() && !photoRemoved }
+            val hasPhoto = newPhotoUri != null || currentPhotoUrl != null
+            Column {
+                Text(
+                    text = if (property.propertyType?.supportsMultipleUnits == true) "Photo (shown for every flat)" else "Photo (optional)",
+                    style = MaskanType.fieldLabel,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(bottom = 6.dp),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(2.2f)
+                        .clip(RoundedCornerShape(MaskanDimens.cornerRadius))
+                        .background(colors.fieldBackground)
+                        .clickable(enabled = !isSaving) { photoPicker.launch("image/*") },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    when {
+                        newPhotoUri != null -> AsyncImage(model = newPhotoUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        currentPhotoUrl != null -> PropertyPhoto(url = currentPhotoUrl, modifier = Modifier.fillMaxSize())
+                        else -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Filled.AddPhotoAlternate, contentDescription = null, tint = colors.gradientStart)
+                            Text(text = "Add a photo of the building", style = MaskanType.secondary, color = colors.textSecondary)
+                        }
+                    }
+                }
+                if (hasPhoto) {
+                    Row(modifier = Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                        Text(
+                            text = "Change photo",
+                            style = MaskanType.bodyMedium,
+                            color = colors.gradientStart,
+                            modifier = Modifier.clickable(enabled = !isSaving) { photoPicker.launch("image/*") },
+                        )
+                        Text(
+                            text = "Remove photo",
+                            style = MaskanType.bodyMedium,
+                            color = colors.danger,
+                            modifier = Modifier.clickable(enabled = !isSaving) {
+                                newPhotoUri = null
+                                photoRemoved = property.photoUrl != null
+                            },
+                        )
+                    }
+                }
+            }
+
             AppTextField(value = buildingName, onValueChange = { buildingName = it }, label = if (property.propertyType?.supportsMultipleUnits == true) "Building name" else "Property name")
             AppTextField(value = address, onValueChange = { address = it }, label = "Address")
             if (property.propertyType?.supportsMultipleUnits == true) {
@@ -121,6 +194,15 @@ fun EditPropertyScreen(viewModel: LandlordViewModel, propertyId: String, onDone:
                     error = null
                     scope.launch {
                         try {
+                            val pickedUri = newPhotoUri
+                            val photoEdit = when {
+                                pickedUri != null -> PropertyRepository.PhotoEdit.Replace(
+                                    withContext(Dispatchers.IO) { compressImageForUpload(context, pickedUri) }
+                                        ?: error("Couldn't read the selected photo."),
+                                )
+                                photoRemoved -> PropertyRepository.PhotoEdit.Remove
+                                else -> PropertyRepository.PhotoEdit.Keep
+                            }
                             viewModel.propertyRepository.editProperty(
                                 property = property,
                                 siblingIds = siblingIds,
@@ -133,6 +215,7 @@ fun EditPropertyScreen(viewModel: LandlordViewModel, propertyId: String, onDone:
                                 ),
                                 unit = unit,
                                 monthlyRent = rent.toDoubleOrNull() ?: property.monthlyRent,
+                                photo = photoEdit,
                             )
                             onDone()
                         } catch (t: Throwable) {

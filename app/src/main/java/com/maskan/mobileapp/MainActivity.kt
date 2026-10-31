@@ -28,6 +28,7 @@ import com.maskan.mobileapp.data.prefs.AppTheme
 import com.maskan.mobileapp.data.repository.UpdateStatus
 import com.maskan.mobileapp.di.AppContainer
 import com.maskan.mobileapp.di.LocalAppContainer
+import com.maskan.mobileapp.ui.components.MaintenancePopup
 import com.maskan.mobileapp.ui.nav.MaskanNavHost
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 
@@ -66,7 +67,34 @@ private fun MaskanApp(container: AppContainer) {
             MaskanNavHost()
         }
         UpdateCheck(container)
+        MaintenanceCheck(container)
     }
+}
+
+/**
+ * Live-listens to config/app (Firestore) so a scheduled-maintenance flag can
+ * interrupt the app at any point in the session, not just at launch — same
+ * doc iOS reads, same admin toggle takes both platforms down together.
+ * Dismiss only works when `appAccessible` is true; otherwise there's no way
+ * past it until the flag is cleared.
+ */
+@Composable
+private fun MaintenanceCheck(container: AppContainer) {
+    val state by container.maintenanceRepository.state.collectAsStateWithLifecycle()
+    var dismissed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        container.maintenanceRepository.startListening()
+    }
+
+    val current = state ?: return
+    if (!current.isScheduled || dismissed) return
+
+    MaintenancePopup(
+        message = current.message,
+        isAppAccessible = current.isAppAccessible,
+        onContinue = { dismissed = true },
+    )
 }
 
 /** Checks Remote Config once per process launch; non-dismissable when below the min supported version. */

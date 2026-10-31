@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,7 +44,7 @@ import com.maskan.mobileapp.ui.coachmark.CoachMarkSequencer
 import com.maskan.mobileapp.ui.coachmark.coachMarkAnchor
 import com.maskan.mobileapp.ui.components.EmptyState
 import com.maskan.mobileapp.ui.components.MaskanCard
-import com.maskan.mobileapp.ui.components.SegmentedControl
+import com.maskan.mobileapp.ui.components.FilterChipBar
 import com.maskan.mobileapp.ui.components.StatusBadge
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
 import com.maskan.mobileapp.ui.landlord.LocalLandlordContentBottomInset
@@ -73,6 +74,9 @@ fun PropertiesScreen(
     val uploadingIds by viewModel.uploadingPhotoPropertyIds.collectAsStateWithLifecycle()
 
     var filter by remember { mutableStateOf(PropertyFilter.ACTIVE) }
+    LaunchedEffect(archivedProperties.isEmpty()) {
+        if (archivedProperties.isEmpty()) filter = PropertyFilter.ACTIVE
+    }
     val groups = remember(properties) { groupProperties(properties) }
     val archivedGroups = remember(archivedProperties) { groupProperties(archivedProperties) }
     val currencyCode = { flats: List<com.maskan.mobileapp.data.model.Property> ->
@@ -113,13 +117,16 @@ fun PropertiesScreen(
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
             item { PropertiesHeader() }
-            item {
-                SegmentedControl(
-                    options = listOf(PropertyFilter.ACTIVE, PropertyFilter.OLD),
-                    selected = filter,
-                    onSelect = { filter = it },
-                    label = { if (it == PropertyFilter.ACTIVE) "Active" else "Old" },
-                )
+            // Like iOS, the Active/Old switch only appears once something has been deleted.
+            if (archivedProperties.isNotEmpty()) {
+                item {
+                    FilterChipBar(
+                        options = listOf(PropertyFilter.ACTIVE, PropertyFilter.OLD),
+                        selected = filter,
+                        onSelect = { filter = it },
+                        label = { if (it == PropertyFilter.ACTIVE) "Active" else "Old" },
+                    )
+                }
             }
             if (filter == PropertyFilter.ACTIVE) {
                 if (groups.isEmpty()) {

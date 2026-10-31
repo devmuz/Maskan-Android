@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,7 +40,7 @@ import com.maskan.mobileapp.data.model.Property
 import com.maskan.mobileapp.data.model.Tenant
 import com.maskan.mobileapp.ui.components.EmptyState
 import com.maskan.mobileapp.ui.components.MaskanCard
-import com.maskan.mobileapp.ui.components.SegmentedControl
+import com.maskan.mobileapp.ui.components.FilterChipBar
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
 import com.maskan.mobileapp.ui.landlord.LocalLandlordContentBottomInset
 import com.maskan.mobileapp.ui.theme.MaskanDimens
@@ -47,6 +48,7 @@ import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 private enum class TenantFilter { ACTIVE, OLD }
@@ -60,6 +62,10 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
     val scope = rememberCoroutineScope()
 
     var filter by remember { mutableStateOf(TenantFilter.ACTIVE) }
+    val hasOldTenants = tenants.any { !it.isDeleted && !it.isActive }
+    LaunchedEffect(hasOldTenants) {
+        if (!hasOldTenants) filter = TenantFilter.ACTIVE
+    }
     val filtered = remember(tenants, filter) {
         // Soft-deleted tenants are excluded from both tabs — deleted != old (feature-tenants.md).
         tenants.filter { !it.isDeleted && if (filter == TenantFilter.ACTIVE) it.isActive else !it.isActive }
@@ -81,13 +87,16 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.itemSpacing),
         ) {
             item { Text(text = "Tenants", style = MaskanType.screenTitle, color = colors.textPrimary) }
-            item {
-                SegmentedControl(
-                    options = listOf(TenantFilter.ACTIVE, TenantFilter.OLD),
-                    selected = filter,
-                    onSelect = { filter = it },
-                    label = { if (it == TenantFilter.ACTIVE) "Active" else "Old" },
-                )
+            // Like iOS, the Active/Old switch only appears once there are old tenants.
+            if (hasOldTenants) {
+                item {
+                    FilterChipBar(
+                        options = listOf(TenantFilter.ACTIVE, TenantFilter.OLD),
+                        selected = filter,
+                        onSelect = { filter = it },
+                        label = { if (it == TenantFilter.ACTIVE) "Active" else "Old" },
+                    )
+                }
             }
 
             if (filtered.isEmpty()) {
@@ -130,15 +139,17 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
     }
 
     tenantForRemoval?.let { tenant ->
+        // Active tenants stage through "Old" first (moveOutDate = today); only an
+        // already-old tenant is permanently (soft-)removed.
         AlertDialog(
             onDismissRequest = { tenantForRemoval = null },
-            title = { Text("Remove ${tenant.name}?") },
+            title = { Text(if (tenant.isActive) "Mark tenant as moved out?" else "Remove tenant?") },
             text = {
                 Text(
                     if (tenant.isActive) {
-                        "${tenant.name} will no longer be able to log in, and ${tenant.propertyIdCode} will be marked vacant."
+                        "${tenant.name} will no longer be able to log in, and ${tenant.propertyIdCode} will be marked vacant. Their record moves to Old Tenants."
                     } else {
-                        "${tenant.name} will be removed from your tenant lists. Payment history is kept."
+                        "${tenant.name} will be permanently removed from the tenant list. Payment history will remain accessible in Bills."
                     },
                 )
             },
@@ -148,12 +159,16 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
                     tenantForRemoval = null
                     scope.launch {
                         try {
-                            viewModel.tenantRepository.deleteTenant(target)
+                            if (target.isActive) {
+                                viewModel.tenantRepository.markMovedOut(target, Date())
+                            } else {
+                                viewModel.tenantRepository.deleteTenant(target)
+                            }
                         } catch (t: Throwable) {
                             removalError = t.message
                         }
                     }
-                }) { Text("Remove", color = colors.danger) }
+                }) { Text(if (tenant.isActive) "Mark Moved Out" else "Remove", color = colors.danger) }
             },
             dismissButton = { TextButton(onClick = { tenantForRemoval = null }) { Text("Cancel") } },
         )
@@ -195,7 +210,10 @@ private fun TenantRow(
                     )
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         DropdownMenuItem(text = { Text("Edit") }, onClick = { menuExpanded = false; onEdit() })
-                        DropdownMenuItem(text = { Text("Remove") }, onClick = { menuExpanded = false; onRemove() })
+                        DropdownMenuItem(
+                            text = { Text(if (tenant.isActive) "Mark Moved Out" else "Remove") },
+                            onClick = { menuExpanded = false; onRemove() },
+                        )
                     }
                 }
                 val dateLabel = if (tenant.isActive) {

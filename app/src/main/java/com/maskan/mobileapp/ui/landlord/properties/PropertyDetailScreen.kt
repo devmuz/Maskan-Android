@@ -37,7 +37,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import com.maskan.mobileapp.ui.components.PropertyPhoto
 import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.ui.components.GradientButton
 import com.maskan.mobileapp.ui.components.MaskanCard
@@ -84,11 +84,9 @@ fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBac
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
             if (!property.photoUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = property.photoUrl,
-                    contentDescription = null,
+                PropertyPhoto(
+                    url = property.photoUrl!!,
                     modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(MaskanDimens.heroCornerRadius)),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 )
             }
 

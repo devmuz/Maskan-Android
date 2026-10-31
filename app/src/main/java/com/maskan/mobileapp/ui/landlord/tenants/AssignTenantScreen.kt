@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import com.maskan.mobileapp.data.model.IdentityDocumentType
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -35,7 +36,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
@@ -67,6 +73,13 @@ fun AssignTenantScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCance
     var contact by remember { mutableStateOf("") }
     var moveInDate by remember { mutableStateOf(Date()) }
     var showDatePicker by remember { mutableStateOf(false) }
+
+    // Optional extra details — none of these are required to add a tenant.
+    var identityDocumentType by remember { mutableStateOf<IdentityDocumentType?>(null) }
+    var identityDocumentNumber by remember { mutableStateOf("") }
+    var profession by remember { mutableStateOf("") }
+    var alternateContact by remember { mutableStateOf("") }
+    var permanentAddress by remember { mutableStateOf("") }
     var propertyMenuExpanded by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -144,6 +157,19 @@ fun AssignTenantScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCance
                         Text(text = dateFormat.format(moveInDate), style = MaskanType.bodyMedium, color = colors.gradientStart)
                     }
 
+                    OptionalTenantDetailsSection(
+                        identityDocumentType = identityDocumentType,
+                        onIdentityDocumentTypeChange = { identityDocumentType = it },
+                        identityDocumentNumber = identityDocumentNumber,
+                        onIdentityDocumentNumberChange = { identityDocumentNumber = it },
+                        profession = profession,
+                        onProfessionChange = { profession = it },
+                        alternateContact = alternateContact,
+                        onAlternateContactChange = { alternateContact = it },
+                        permanentAddress = permanentAddress,
+                        onPermanentAddressChange = { permanentAddress = it },
+                    )
+
                     error?.let { Text(text = it, style = MaskanType.secondary, color = colors.danger) }
 
                     GradientButton(
@@ -158,7 +184,18 @@ fun AssignTenantScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCance
                             error = null
                             scope.launch {
                                 try {
-                                    result = viewModel.tenantRepository.assignTenant(viewModel.landlordUid, propertyId, name, contact, moveInDate)
+                                    result = viewModel.tenantRepository.assignTenant(
+                                        landlordId = viewModel.landlordUid,
+                                        propertyId = propertyId,
+                                        name = name,
+                                        contact = contact,
+                                        moveInDate = moveInDate,
+                                        identityDocumentType = identityDocumentType,
+                                        identityDocumentNumber = identityDocumentNumber.trim().ifBlank { null },
+                                        permanentAddress = permanentAddress.trim().ifBlank { null },
+                                        profession = profession.trim().ifBlank { null },
+                                        alternateContact = alternateContact.trim().ifBlank { null },
+                                    )
                                 } catch (t: Throwable) {
                                     error = t.message ?: "Couldn't assign this tenant."
                                 } finally {
@@ -193,25 +230,56 @@ fun AssignTenantScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCance
 private fun AssignedCredentialsContent(assigned: AssignedTenant, onDone: () -> Unit) {
     val colors = MaskanTheme.colors
     val clipboard = LocalClipboardManager.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    val graphicsLayer = rememberGraphicsLayer()
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = MaskanDimens.screenHPadding, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Box(modifier = Modifier.size(64.dp).background(colors.success.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
-            Icon(Icons.Filled.Check, contentDescription = null, tint = colors.success, modifier = Modifier.size(30.dp))
-        }
-        Text(text = "Tenant added", style = MaskanType.sectionTitle, color = colors.textPrimary)
-        Text(
-            text = "Share these credentials with your tenant. The password is shown only once — it can't be viewed again.",
-            style = MaskanType.body,
-            color = colors.textSecondary,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        GradientButton(
+            text = "Share",
+            modifier = Modifier.align(Alignment.End),
+            onClick = {
+                scope.launch {
+                    shareCredentialsImage(context, graphicsLayer)
+                }
+            },
         )
 
-        CredentialCard(label = "Property ID", value = assigned.tenant.propertyIdCode)
-        CredentialCard(label = "Temporary Password", value = assigned.temporaryPassword)
+        // Only this content is captured for the shared image — no header,
+        // no Copy/Done buttons (matches iOS's shareCardContent).
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawWithCache {
+                    onDrawWithContent {
+                        graphicsLayer.record { this@onDrawWithContent.drawContent() }
+                        drawLayer(graphicsLayer)
+                    }
+                }
+                .background(colors.background)
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Box(modifier = Modifier.size(64.dp).background(colors.success.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Check, contentDescription = null, tint = colors.success, modifier = Modifier.size(30.dp))
+            }
+            Text(text = "Tenant added", style = MaskanType.sectionTitle, color = colors.textPrimary)
+            Text(
+                text = "Share these credentials with your tenant. The password is shown only once — it can't be viewed again.",
+                style = MaskanType.body,
+                color = colors.textSecondary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+
+            CredentialCard(label = "Tenant", value = assigned.tenant.name)
+            CredentialCard(label = "Property ID", value = assigned.tenant.propertyIdCode)
+            CredentialCard(label = "Temporary Password", value = assigned.temporaryPassword)
+        }
 
         GradientButton(
             text = "Copy Both",
@@ -222,6 +290,85 @@ private fun AssignedCredentialsContent(assigned: AssignedTenant, onDone: () -> U
             },
         )
         GradientButton(text = "Done", onClick = onDone)
+    }
+}
+
+/** Renders [graphicsLayer]'s last-recorded content to a PNG in cache and shares it via ACTION_SEND. */
+private suspend fun shareCredentialsImage(
+    context: android.content.Context,
+    graphicsLayer: androidx.compose.ui.graphics.layer.GraphicsLayer,
+) {
+    val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+    val dir = java.io.File(context.cacheDir, "images").apply { mkdirs() }
+    val file = java.io.File(dir, "tenant_credentials_${System.currentTimeMillis()}.png")
+    java.io.FileOutputStream(file).use { out ->
+        bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+    }
+    val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        type = "image/png"
+        putExtra(android.content.Intent.EXTRA_STREAM, uri)
+        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(android.content.Intent.createChooser(intent, "Share credentials"))
+}
+
+/** Shared by [AssignTenantScreen] and [EditTenantScreen] — none of these fields are required. */
+@Composable
+internal fun OptionalTenantDetailsSection(
+    identityDocumentType: IdentityDocumentType?,
+    onIdentityDocumentTypeChange: (IdentityDocumentType?) -> Unit,
+    identityDocumentNumber: String,
+    onIdentityDocumentNumberChange: (String) -> Unit,
+    profession: String,
+    onProfessionChange: (String) -> Unit,
+    alternateContact: String,
+    onAlternateContactChange: (String) -> Unit,
+    permanentAddress: String,
+    onPermanentAddressChange: (String) -> Unit,
+) {
+    val colors = MaskanTheme.colors
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(text = "OPTIONAL DETAILS", style = MaskanType.overline, color = colors.textTertiary)
+
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(text = "Identity Document", style = MaskanType.fieldLabel, color = colors.textPrimary)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IdentityDocumentType.entries.forEach { type ->
+                    IdentityTypeChip(
+                        label = type.displayName,
+                        selected = type == identityDocumentType,
+                        onClick = { onIdentityDocumentTypeChange(if (type == identityDocumentType) null else type) },
+                    )
+                }
+            }
+            if (identityDocumentType != null) {
+                AppTextField(value = identityDocumentNumber, onValueChange = onIdentityDocumentNumberChange, label = "", placeholder = "Document number")
+            }
+        }
+
+        AppTextField(value = profession, onValueChange = onProfessionChange, label = "Profession", placeholder = "e.g. Software Engineer")
+        AppTextField(value = alternateContact, onValueChange = onAlternateContactChange, label = "Alternate Number", placeholder = "Phone number", keyboardType = KeyboardType.Phone)
+
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(text = "Permanent Address", style = MaskanType.fieldLabel, color = colors.textPrimary)
+            AppTextField(value = permanentAddress, onValueChange = onPermanentAddressChange, label = "", placeholder = "Street, area, city", minLines = 2)
+        }
+    }
+}
+
+@Composable
+private fun IdentityTypeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val colors = MaskanTheme.colors
+    val brush = if (selected) colors.primaryGradient else androidx.compose.ui.graphics.SolidColor(colors.fieldBackground)
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(brush)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Text(text = label, style = MaskanType.bodyMedium, color = if (selected) Color.White else colors.textSecondary)
     }
 }
 

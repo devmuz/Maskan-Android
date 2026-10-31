@@ -100,8 +100,12 @@ fun LandlordRequestDetailScreen(viewModel: LandlordViewModel, requestId: String,
                         "Property",
                         property?.let { if (it.unit.isNotBlank()) "${it.displayBuildingName} · ${it.unit}" else it.displayBuildingName } ?: "—",
                     )
-                    request.createdAt?.let { DetailRow("Submitted", dateFormat.format(it)) }
-                    request.resolvedAt?.let { DetailRow("Resolved", dateFormat.format(it)) }
+                    DetailRow("Initiated", request.createdAt?.let { dateFormat.format(it) } ?: "—")
+                    DetailRow(
+                        "Completed",
+                        request.resolvedAt?.let { dateFormat.format(it) }
+                            ?: if (request.status == ServiceRequestStatus.RESOLVED) "Just now" else "Not yet",
+                    )
                 }
             }
 

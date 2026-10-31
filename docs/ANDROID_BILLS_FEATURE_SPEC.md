@@ -103,10 +103,11 @@ Each type has an associated icon and tint color used as the icon-tile background
 3. **`updatePayment(payment, amount, paidDate, method)`** — edits an existing payment's amount/date/method only; does **not** touch the bill's status.
 4. **`deletePayment(payment)`** — batched: deletes the payment AND reverts the linked bill to `status = pending`, clears `paidAt`.
 5. **`markAsOverdue(bill)` / `markAsPending(bill)`** — direct, **manual-only** status field toggles. Nothing in the system automatically flips a bill to `overdue` when its due date passes (see §6 for the real overdue-detection rule used by the Dashboard).
-6. **`submitPaymentForVerification(bill, amount, paidDate, method, notes)`** — tenant-side flow: batched write sets `bill.status = verifying` and **also overwrites `bill.amount`** with the tenant-submitted value, plus creates a pending `Payment` doc. (Note: the displayed amount changes immediately upon submission, *before* landlord approval — replicate this exact quirk.)
+6. **`submitPaymentForVerification(bill, amount, paidDate, method, notes)`** — tenant-side flow: batched write sets `bill.status = verifying` and **also overwrites `bill.amount`** with the tenant-submitted value, plus creates a pending `Payment` doc. (Note: the displayed amount changes immediately upon submission, *before* landlord approval — replicate this exact quirk.) If the bill has **no doc ID** (the tenant's synthesized current-month rent, see §6), the bill doc is **created** in the same batch with `status = verifying`, `paidBy = tenant` — Firestore rules allow tenant bill creation only in exactly that shape.
 7. **`approvePayment(bill)`** — landlord action, valid only if `status == verifying`. Finds the associated payment, sets `status = paid`, `paidAt = payment.paidDate`.
 8. **`rejectPayment(bill)`** — landlord action, valid only if `status == verifying`. Deletes the associated payment, reverts to `pending`.
-9. **`deleteBill(bill)`** — deletes the bill doc **and** every `payments` doc with a matching `billId`, in the same batch (explicit anti-orphan design — don't let stale payments linger in history/charts).
+9. **`deleteBill(bill)`** — deletes the bill doc **and** every `payments` doc with a matching `billId`, in the same batch (explicit anti-orphan design — don't let stale payments linger in history/charts). The payments lookup **must filter `propertyId == bill.propertyId` as well as `billId`** — a `billId`-only query can't be proven against the payments read rule and fails with PERMISSION_DENIED.
+9b. **`updatePaidBy(bill, paidBy)`** — Bill Detail: switches an unpaid (pending/overdue), non-rent bill between Tenant's Bill and Property Expense; writes `paidBy` only.
 10. **`recordBillPayment(property, landlordId, type, amount, paidDate, method, rentDueDay)`** — **the "quick record any bill type" entry point, and the actual mechanism behind recurring bills**:
     - Computes `targetPeriod` from `paidDate` + `type.defaultFrequency`.
     - Searches for an existing bill matching `propertyId + type + period == targetPeriod + status != paid + (paidBy == tenant or unset)`.
@@ -116,7 +117,7 @@ Each type has an associated icon and tint color used as the icon-tile background
     - **This is the only mechanism that produces a rent bill for a month with no pre-existing bill doc.** Rent bills are materialized only at the moment a payment is recorded against them — never proactively.
 11. **`setPendingAmount(property, landlordId, amount, rentDueDay)`** — "Adjust pending amount" (from Tenant Detail). If a current-month rent bill already exists, patches its `amount` only; else **creates a new `pending` rent Bill doc** for the current period. This and #10 are the **only two places** a rent Bill doc gets created without the landlord using the full Add Bill form.
 12. **`sendReminder(tenantId, message)`** — writes to a `notifications` Firestore collection (see the Tenants spec §9 — this is a documented gap, not a push notification).
-13. **`rentDueDate(day, referenceDate)`** — clamps `day` to `[1, 28]` (default 5 if unset), builds a Date for that day-of-month in the reference month.
+13. **`rentDueDate(day, referenceDate)`** — clamps `day` to `[1, min(30, daysInMonth)]` (default 5 if unset), builds a Date for that day-of-month in the reference month — so day 30 lands on Feb 28/29.
 
 ### 2.5 "Current amount due" fallback chain — critical business rule
 ```
@@ -163,7 +164,7 @@ Reused everywhere a bill row is tappable (Bills list, Property Expenses, Buildin
   - Property (passed-in name)
   - Period
   - Frequency (`frequency ?? monthly`)
-  - Paid By (`paidBy ?? tenant` → "Tenant" / "Property Expense")
+  - Paid By (`paidBy ?? tenant` → "Tenant" / "Property Expense") — an editable menu (Tenant's Bill / Property Expense) when the bill is unpaid and not rent; read-only otherwise.
   - Due Date
   - Paid On (only if set)
   - Notes (only if non-empty)
@@ -185,7 +186,7 @@ Fields, in order:
 1. **Property** — picker over the pre-filtered (non-locked) property list. Label: `"{buildingName} – {unit}"` or `name`. Empty message: "No properties found. Add a property first."
 2. **Bill Type** — horizontal chip row, one per BillType. Selecting a type **auto-sets frequency to that type's default**; selecting `rent` **force-resets Paid By to Tenant**.
 3. **Frequency** — 3 chips: Monthly / Annual / One Time (user can override the type's default).
-4. **Paid By** — 2 chips: "Tenant's Bill" / "Property Expense". **Disabled/non-interactive when Bill Type is Rent** (rent is always tenant-paid — enforced only at the UI layer, not server-side).
+4. **Paid By** — 2 chips: "Tenant's Bill" / "Property Expense". **Disabled/non-interactive when Bill Type is Rent** (rent is always tenant-paid — enforced only at the UI layer, not server-side). A caption under it: Tenant's Bill → "Shown to the tenant, who can mark it paid for you to approve."; Property Expense → "You pay this yourself. It won't be shown to the tenant." 
 5. **Amount** — decimal input, placeholder "0".
 6. **Reference Date** — date picker; live-shows the computed "Period: {periodDisplayName}" below it based on frequency.
 7. **Due Date** — a **separate, independent** date picker (no cross-validation against Reference Date — the two can be inconsistent and the app allows it).
@@ -219,7 +220,7 @@ Same shape as §5.5 but scoped to one known property; type chips default to Rent
 
 There is **no automatic/scheduled bill generation** anywhere in the system — no Cloud Function, no cron, no `WorkManager`-equivalent on iOS. Monthly/annual bill instances only ever come into existence through exactly three code paths (already detailed above): `recordBillPayment` (#10), `setPendingAmount` (#11), and manual `createBill` via the Add Bill form.
 
-Until one of those fires for a given period, "this month's rent due" is a **purely derived value** (`property.monthlyRent`), never a stored document. `BillFrequency` only determines what `period` string gets stamped on the eventual bill doc — it does **not** drive any repeat-scheduling, "next occurrence" concept, series/template object, or bulk-generate-for-all-tenants capability.
+Until one of those fires for a given period, "this month's rent due" is a **purely derived value** (`property.monthlyRent`), never a stored document. Both apps show it: the landlord's Tenant Detail current-month card, and the tenant app, which synthesizes a virtual rent bill (no ID, `period` = current month, `dueDate` = `rentDueDate(rentDueDay)`) in its outstanding list and total due. A fourth creation path exists for that case only: the tenant reporting payment on it creates the bill as `verifying` (#6). `BillFrequency` only determines what `period` string gets stamped on the eventual bill doc — it does **not** drive any repeat-scheduling, "next occurrence" concept, series/template object, or bulk-generate-for-all-tenants capability.
 
 **Do not build a server cron that proactively inserts a `bills` doc on the 1st of each month.** That would create bill documents Android produces that iOS never would (and vice versa for anything iOS creates), and the two platforms' bill lists/dashboards would permanently disagree. Replicate the lazy pattern exactly: compute "current period due" from `monthlyRent` when no bill exists, and only persist a `Bill` doc when the landlord actually acts.
 
@@ -249,14 +250,14 @@ Powered by the tenant's own data service (see Tenants spec §2.3/§7) — a comp
 - `pendingBills` (status != paid, sorted dueDate asc), `paidBills` (status == paid, sorted paidAt/dueDate desc), `totalDue` (sum of pendingBills amounts), `currencyCode` (read from the property's stamped `currency`, default `"USD"` — read-only for tenants, they cannot change it).
 
 ### Tenant Dashboard bill sections
-- **Hero card**: total due (or `"{code} 0.00"` if none), "{N} bill(s) outstanding" / "No pending dues".
-- **Outstanding Bills card** (shown only if pending bills exist): count badge, ALL pending bills listed (no cap), tap → Bill Detail sheet.
+- **Hero card**: total due (or `"{code} 0.00"` if none), "{N} bill(s) outstanding" / "No pending dues". Plus an **"I've Paid Rent"** white capsule button when an outstanding rent bill (real or synthesized) isn't already `verifying` → opens that bill's detail.
+- **Outstanding Bills card** (shown only if pending bills exist): count badge, ALL pending bills listed (no cap) including the synthesized current-month rent, tap → Bill Detail sheet.
 - **Recent Payments card** (shown only if paid bills exist): top 5, "View All" (only if more than 5) → full Payment History.
 - **Error card**: "Couldn't load bills" + error text, if the listener errored.
 - **Empty state**: "All caught up" / "No pending bills or dues at the moment." — only when pending, paid, and requests are all empty.
 
 ### Tenant Bill Detail sheet
-Icon, amount, status pill; detail rows (Period, Due Date, Paid On if paid, Frequency if set, Notes if any). "I've Paid This Bill" button (pending/overdue only) → submission sheet (§5.3). If `verifying`: info banner "Your payment is being verified by your landlord." — no action button.
+Icon, amount, status pill; detail rows (Period, Due Date, Paid On if paid, Frequency if set, Notes if any). "I've Paid This Bill" button (pending/overdue only) → submission sheet (§5.3). If `verifying`: info banner "Your payment is being verified by your landlord." — no action button. Reads the live bill (by ID, or `type`+`period` for the synthesized rent) so it flips to Verifying… right after submit.
 
 ### Payment History screen (tenant)
 Paid bills grouped by calendar month (of `paidAt`, falling back to `dueDate`), newest month first, newest-first within each group. Empty state: "No history yet" / "Your paid bills and rent payments will appear here."

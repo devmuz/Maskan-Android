@@ -54,9 +54,10 @@ fun BillDetailScreen(
 ) {
     val colors = MaskanTheme.colors
     val bills by viewModel.bills.collectAsStateWithLifecycle()
+    val upcomingRent by viewModel.upcomingRentBill.collectAsStateWithLifecycle()
     val currencyCode by viewModel.currencyCode.collectAsStateWithLifecycle()
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
-    val bill = bills.find { it.id == billId }
+    val bill = resolveTenantBill(billId, bills, upcomingRent)
 
     if (bill == null) {
         Box(modifier = Modifier.fillMaxSize().background(colors.background), contentAlignment = Alignment.Center) {

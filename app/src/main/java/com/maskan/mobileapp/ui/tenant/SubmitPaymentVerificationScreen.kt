@@ -58,7 +58,8 @@ fun SubmitPaymentVerificationScreen(
     val colors = MaskanTheme.colors
     val scope = rememberCoroutineScope()
     val bills by viewModel.bills.collectAsStateWithLifecycle()
-    val bill = bills.find { it.id == billId }
+    val upcomingRent by viewModel.upcomingRentBill.collectAsStateWithLifecycle()
+    val bill = resolveTenantBill(billId, bills, upcomingRent)
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
 
     if (bill == null) {

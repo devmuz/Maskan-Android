@@ -10,6 +10,7 @@ import com.maskan.mobileapp.data.model.Tenant
 import com.maskan.mobileapp.di.AppContainer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
@@ -60,9 +61,13 @@ class LandlordViewModel(private val container: AppContainer) : ViewModel() {
         container.billingRepository.startListening(viewModelScope, id)
         container.serviceRequestRepository.startListening(viewModelScope, id)
         container.landlordRepository.startListening(viewModelScope, id)
+        // Archived (soft-deleted) properties are included so tenants who moved out
+        // of a since-deleted property still show under Tenants → Old, as on iOS.
         viewModelScope.launch {
-            container.propertyRepository.properties.collect { properties ->
-                container.tenantRepository.startListening(viewModelScope, id, properties.map { it.id })
+            combine(container.propertyRepository.properties, container.propertyRepository.archivedProperties) { active, archived ->
+                (active + archived).map { it.id }.distinct()
+            }.collect { propertyIds ->
+                container.tenantRepository.startListening(viewModelScope, id, propertyIds)
             }
         }
         viewModelScope.launch {
@@ -84,7 +89,10 @@ class LandlordViewModel(private val container: AppContainer) : ViewModel() {
         kotlinx.coroutines.coroutineScope {
             launch { container.propertyRepository.refresh(id) }
             launch { container.billingRepository.refresh(id) }
-            launch { container.tenantRepository.refresh(id, container.propertyRepository.properties.value.map { it.id }) }
+            launch {
+                val repo = container.propertyRepository
+                container.tenantRepository.refresh(id, (repo.properties.value + repo.archivedProperties.value).map { it.id }.distinct())
+            }
         }
     }
 

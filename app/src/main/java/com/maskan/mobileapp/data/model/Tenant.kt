@@ -36,7 +36,17 @@ data class Tenant(
      * their own doc directly (feature_push.md).
      */
     val fcmToken: String? = null,
+    @get:PropertyName("identityDocumentType") @set:PropertyName("identityDocumentType")
+    var identityDocumentTypeRaw: String? = null,
+    val identityDocumentNumber: String? = null,
+    val permanentAddress: String? = null,
+    val profession: String? = null,
+    val alternateContact: String? = null,
 ) {
+    @get:Exclude
+    val identityDocumentType: IdentityDocumentType?
+        get() = IdentityDocumentType.entries.firstOrNull { it.raw == identityDocumentTypeRaw }
+
     // @get:Exclude: without it, Firestore's reflection maps getStatus() to the same default
     // key ("status") that getStatusRaw()'s @PropertyName already targets, and throws "Found
     // conflicting getters" the first time a real `tenants` doc is deserialized.
@@ -71,4 +81,9 @@ enum class TenantStatus(val raw: String) {
     ACTIVE("active"),
     OLD("old"),
     DELETED("deleted"),
+}
+
+enum class IdentityDocumentType(val raw: String, val displayName: String) {
+    NATIONAL_ID("nationalId", "National ID"),
+    PASSPORT("passport", "Passport"),
 }

@@ -46,6 +46,16 @@ object PeriodFormatter {
     }
 
     fun currentMonthRentPeriod(): String = periodForNow(Frequency.MONTHLY)
+
+    /**
+     * Rent due date for the month containing [referenceDate]: [day] (default
+     * 5 if unset) clamped to 1–30, and to the month's last day in shorter
+     * months (e.g. 30 → Feb 28/29).
+     */
+    fun rentDueDate(day: Int?, referenceDate: LocalDate = LocalDate.now()): Date {
+        val lastDay = minOf(30, referenceDate.lengthOfMonth())
+        return referenceDate.withDayOfMonth((day ?: 5).coerceIn(1, lastDay)).toDate()
+    }
 }
 
 fun Date.toLocalDate(): LocalDate =

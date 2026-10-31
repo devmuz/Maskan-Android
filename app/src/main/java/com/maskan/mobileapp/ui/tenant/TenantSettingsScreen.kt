@@ -259,11 +259,6 @@ fun TenantSettingsScreen(
                         }
                         Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
                     }
-                    HorizontalDivider(color = colors.border, modifier = Modifier.padding(vertical = 10.dp))
-                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Version", style = MaskanType.body, color = colors.textPrimary)
-                        Text(text = versionName, style = MaskanType.secondary, color = colors.textSecondary)
-                    }
                 }
             }
 
@@ -275,7 +270,13 @@ fun TenantSettingsScreen(
                 contentColor = colors.danger,
             )
 
-            Box(modifier = Modifier.padding(bottom = 24.dp))
+            Text(
+                text = "Maskan $versionName",
+                style = MaskanType.caption,
+                color = colors.textTertiary,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 24.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
         }
     }
 

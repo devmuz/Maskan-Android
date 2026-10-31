@@ -39,12 +39,13 @@ data class ServiceRequest(
         get() = ServiceRequestStatus.entries.firstOrNull { it.raw == statusRaw } ?: ServiceRequestStatus.PENDING
 }
 
-enum class ServiceRequestCategory(val raw: String, val label: String) {
-    PLUMBING("plumbing", "Plumbing"),
-    ELECTRICAL("electrical", "Electrical"),
-    APPLIANCE("appliance", "Appliance"),
-    GENERAL("general", "General"),
-    OTHER("other", "Other"),
+/** [titlePlaceholder] is the example Issue Title shown in Add Request for this category. */
+enum class ServiceRequestCategory(val raw: String, val label: String, val titlePlaceholder: String) {
+    PLUMBING("plumbing", "Plumbing", "e.g. Kitchen sink is leaking"),
+    ELECTRICAL("electrical", "Electrical", "e.g. Bedroom switchboard sparks"),
+    APPLIANCE("appliance", "Appliance", "e.g. A.C. is not cooling"),
+    GENERAL("general", "General", "e.g. Main door lock is jammed"),
+    OTHER("other", "Other", "e.g. Describe the issue briefly"),
 }
 
 enum class ServiceRequestStatus(val raw: String, val label: String) {

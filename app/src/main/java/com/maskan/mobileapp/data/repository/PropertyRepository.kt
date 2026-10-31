@@ -246,22 +246,45 @@ class PropertyRepository(
     }
 
     /** Building-level fields apply to every flat sharing the building; unit/rent update only [property]. */
-    suspend fun editProperty(property: Property, siblingIds: List<String>, shared: SharedBuildingEdits, unit: String, monthlyRent: Double) {
+    /** Edit Property's photo change; the photo is a building detail, so it applies to every flat. */
+    sealed interface PhotoEdit {
+        data object Keep : PhotoEdit
+        class Replace(val imageBytes: ByteArray) : PhotoEdit
+        data object Remove : PhotoEdit
+    }
+
+    suspend fun editProperty(
+        property: Property,
+        siblingIds: List<String>,
+        shared: SharedBuildingEdits,
+        unit: String,
+        monthlyRent: Double,
+        photo: PhotoEdit = PhotoEdit.Keep,
+    ) {
+        val sharedFields = mutableMapOf<String, Any?>(
+            "buildingName" to shared.buildingName,
+            "name" to shared.buildingName,
+            "address" to shared.address,
+            "electricityAccountNumber" to shared.electricityAccountNumber,
+            "houseTaxNumber" to shared.houseTaxNumber,
+            "waterTaxNumber" to shared.waterTaxNumber,
+        )
+        // The old Storage object is left in place — archived flats of the same
+        // building may still reference it (02-data-models.md → "Editing the photo").
+        when (photo) {
+            PhotoEdit.Keep -> Unit
+            is PhotoEdit.Replace -> {
+                val ref = storage.reference.child("properties/${property.landlordId}/${UUID.randomUUID()}.jpg")
+                ref.putBytes(photo.imageBytes).await()
+                sharedFields["photoUrl"] = ref.downloadUrl.await().toString()
+            }
+            PhotoEdit.Remove -> sharedFields["photoUrl"] = com.google.firebase.firestore.FieldValue.delete()
+        }
+
         val batch = firestore.batch()
         val allIds = (siblingIds + property.id).distinct()
         for (id in allIds) {
-            val ref = propertiesCollection.document(id)
-            batch.update(
-                ref,
-                mapOf(
-                    "buildingName" to shared.buildingName,
-                    "name" to shared.buildingName,
-                    "address" to shared.address,
-                    "electricityAccountNumber" to shared.electricityAccountNumber,
-                    "houseTaxNumber" to shared.houseTaxNumber,
-                    "waterTaxNumber" to shared.waterTaxNumber,
-                ),
-            )
+            batch.update(propertiesCollection.document(id), sharedFields)
         }
         batch.update(propertiesCollection.document(property.id), mapOf("unit" to unit, "monthlyRent" to monthlyRent))
         batch.commit().await()

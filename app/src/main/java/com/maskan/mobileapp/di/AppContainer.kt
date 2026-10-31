@@ -9,9 +9,11 @@ import com.maskan.mobileapp.data.repository.AuthRepository
 import com.maskan.mobileapp.data.repository.BillingRepository
 import com.maskan.mobileapp.data.repository.DocumentRepository
 import com.maskan.mobileapp.data.repository.LandlordRepository
+import com.maskan.mobileapp.data.repository.MaintenanceRepository
 import com.maskan.mobileapp.data.repository.PropertyRepository
 import com.maskan.mobileapp.data.repository.PurchaseRepository
 import com.maskan.mobileapp.data.repository.ServiceRequestRepository
+import com.maskan.mobileapp.data.repository.TenantDocumentRepository
 import com.maskan.mobileapp.data.repository.TenantRepository
 import com.maskan.mobileapp.data.repository.UpdateRepository
 import com.google.firebase.FirebaseApp
@@ -50,6 +52,7 @@ class AppContainer(context: Context) {
     val landlordRepository = LandlordRepository(firestore)
     val purchaseRepository = PurchaseRepository(appContext, landlordRepository)
     val updateRepository = UpdateRepository(remoteConfig, appContext.packageName, currentVersionCode())
+    val maintenanceRepository = MaintenanceRepository(firestore)
 
     /**
      * Documents is deliberately not a shared singleton like the other four
@@ -58,6 +61,9 @@ class AppContainer(context: Context) {
      * one propertyId at a time (feature_documents.md).
      */
     fun newDocumentRepository(): DocumentRepository = DocumentRepository(firestore, storage)
+
+    /** Same not-a-singleton rationale as [newDocumentRepository], scoped to a tenant instead. */
+    fun newTenantDocumentRepository(): TenantDocumentRepository = TenantDocumentRepository(firestore, storage)
 
     private fun currentVersionCode(): Long = runCatching {
         val packageInfo = appContext.packageManager.getPackageInfo(appContext.packageName, 0)

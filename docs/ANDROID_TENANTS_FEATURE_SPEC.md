@@ -25,7 +25,7 @@ Source of truth: iOS codebase at time of writing (branch `development`, after co
 | `propertyDocumentId` | String? | Firestore doc ID of the linked property; nullable on legacy docs |
 | `status` | enum: `active` \| `old` \| `deleted`, nullable | `nil` == active (legacy docs) |
 | `moveOutDate` | Date? | |
-| `rentDueDay` | Int? | 1–28; nil until landlord sets it |
+| `rentDueDay` | Int? | 1–30; nil until landlord sets it (clamped to the last day in shorter months) |
 
 Computed: `isActive = (status ?? .active) == .active`.
 
@@ -106,7 +106,7 @@ Sections top to bottom:
 1. **Tenant info card** — name, property (`unit · buildingName`), call/contact icon button (opens Call/WhatsApp action sheet, shown only if `contact` is non-empty), Property ID code, "Since {moveInDate}".
 2. **Rent card** (active tenants only, "RENT"):
    - Monthly rent — read-only, sourced from the property's `monthlyRent`, currency-formatted.
-   - Payment due day — picker, Day 1–28; paywall-locked if the plan lapsed.
+   - Payment due day — picker, Day 1–30; paywall-locked if the plan lapsed.
 3. **Current month card** (active tenants only, gradient hero):
    - Period label (e.g. "SEPTEMBER 2026") + Paid/Pending badge.
    - Current amount = the current month's rent **Bill** if one exists for this period, else falls back to `property.monthlyRent` (see §5 Bills spec for why bills are lazily created — the same "virtual until touched" rule applies here).
@@ -259,7 +259,7 @@ There is **no tenant-count limit** — gating is entirely **property-count-based
 
 - **"Remind" button** (Tenant Detail, current-month card) writes a Firestore `notifications` doc: `{tenantId, type: "reminder", message, sentAt: <server time>, read: false}`. Message: `"Rent of {amount} for {period} is pending (due day {N}). Please arrange the payment."` (due-day clause omitted if unset).
 - **Known gap, flag to backend/product**: no tenant-side screen in the current app actually reads/displays this `notifications` collection, and no push notification (APNs/FCM) is sent from client code for this event. The landlord-facing copy claims "The tenant will see it in their app's notifications," which is **not currently backed by any UI**. Android should confirm with the backend team whether a server-side function is expected to turn this into a push notification before building anything new here — don't assume Android needs to build a notifications inbox to match iOS, since iOS doesn't have one either.
-- `rentDueDay` (1–28) is purely informational — it does not drive any scheduled/local reminder; it only affects bill-due-date computation, dashboard display, and the reminder message text.
+- `rentDueDay` (1–30) is purely informational — it does not drive any scheduled/local reminder; it only affects bill-due-date computation, dashboard display, and the reminder message text.
 
 ---
 
@@ -320,7 +320,7 @@ Tenant app (separate login, single stack, no tab bar)
 | Contact (Add/Edit) | Required, non-empty after trim; no format/regex validation |
 | Move-in date | No min/max constraint |
 | Move-out date | Must be ≥ tenant's move-in date |
-| Rent due day | Integer 1–28 only |
+| Rent due day | Integer 1–30 only |
 | Record Payment amount | Must parse numeric and be `> 0`; date capped at today (not future) |
 | Adjust pending amount | Must parse numeric and be `> 0` |
 | Tenant new password | ≥ 6 characters; must differ from current; must equal confirm field |

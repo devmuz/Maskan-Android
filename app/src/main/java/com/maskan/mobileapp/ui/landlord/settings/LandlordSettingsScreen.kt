@@ -250,10 +250,6 @@ fun LandlordSettingsScreen(
                         Text(text = "Privacy Policy", style = MaskanType.body, color = colors.textPrimary)
                         Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
                     }
-                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Version", style = MaskanType.body, color = colors.textPrimary)
-                        Text(text = versionName, style = MaskanType.secondary, color = colors.textSecondary)
-                    }
                 }
             }
 

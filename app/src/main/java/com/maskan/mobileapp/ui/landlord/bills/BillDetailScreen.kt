@@ -19,6 +19,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -39,6 +41,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maskan.mobileapp.data.model.BillStatus
+import com.maskan.mobileapp.data.model.BillType
+import com.maskan.mobileapp.data.model.PaidBy
 import com.maskan.mobileapp.data.model.Payment
 import com.maskan.mobileapp.data.model.PaymentMethods
 import com.maskan.mobileapp.data.util.AmountFormatter
@@ -72,6 +76,7 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
 
     var showRecordPayment by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showPaidByMenu by remember { mutableStateOf(false) }
     var actionError by remember { mutableStateOf<String?>(null) }
 
     if (bill == null) {
@@ -117,7 +122,33 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
                     DetailRow("Property", property?.let { if (it.unit.isNotBlank()) "${it.displayBuildingName} · ${it.unit}" else it.displayBuildingName } ?: "—")
                     DetailRow("Period", PeriodFormatter.displayLabel(bill.period))
                     bill.frequency?.let { DetailRow("Frequency", it.label) }
-                    DetailRow("Paid By", bill.paidBy.label)
+                    // Unpaid non-rent bills can be switched between Tenant's Bill (shown to the
+                    // tenant) and Property Expense (hidden) in case it was saved with the wrong
+                    // option (02-data-models.md → "Changing paidBy after creation").
+                    val paidByEditable = bill.type != BillType.RENT && bill.status != BillStatus.PAID && bill.status != BillStatus.VERIFYING
+                    if (paidByEditable) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable { showPaidByMenu = true }.padding(vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(text = "Paid By", style = MaskanType.body, color = colors.textSecondary)
+                            Box {
+                                Text(text = bill.paidBy.label, style = MaskanType.bodyMedium, color = colors.gradientStart)
+                                DropdownMenu(expanded = showPaidByMenu, onDismissRequest = { showPaidByMenu = false }) {
+                                    PaidBy.entries.forEach { option ->
+                                        DropdownMenuItem(text = { Text(option.label) }, onClick = {
+                                            showPaidByMenu = false
+                                            if (option != bill.paidBy) {
+                                                scope.launch { viewModel.billingRepository.updatePaidBy(bill.id, option) }
+                                            }
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        DetailRow("Paid By", bill.paidBy.label)
+                    }
                     DetailRow("Due Date", bill.dueDate?.let { dateFormat.format(it) } ?: "—")
                     bill.paidAt?.let { DetailRow("Paid On", dateFormat.format(it)) }
                     bill.notes?.takeIf { it.isNotBlank() }?.let { DetailRow("Notes", it) }
@@ -209,12 +240,12 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Delete this bill?") },
-            text = { Text("This permanently removes the bill. Its payment records, if any, are not deleted.") },
+            text = { Text("This permanently removes the bill and any payment records against it.") },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false
                     scope.launch {
-                        viewModel.billingRepository.deleteBill(bill.id)
+                        viewModel.billingRepository.deleteBill(bill)
                         onBack()
                     }
                 }) { Text("Delete", color = colors.danger) }

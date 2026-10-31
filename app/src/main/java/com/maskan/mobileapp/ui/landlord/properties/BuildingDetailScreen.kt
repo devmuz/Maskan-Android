@@ -45,7 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import com.maskan.mobileapp.ui.components.PropertyPhoto
 import com.maskan.mobileapp.data.model.PaidBy
 import com.maskan.mobileapp.data.repository.FREE_CO_OWNER_LIMIT
 import com.maskan.mobileapp.data.repository.MAX_CO_OWNERS
@@ -164,11 +164,9 @@ fun BuildingDetailScreen(
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
             if (!representative.photoUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = representative.photoUrl,
-                    contentDescription = null,
+                PropertyPhoto(
+                    url = representative.photoUrl!!,
                     modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(MaskanDimens.heroCornerRadius)),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 )
             }
 

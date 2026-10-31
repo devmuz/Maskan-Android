@@ -55,6 +55,19 @@ class CoachMarkSequencer(private val prefs: CoachmarkPreferences) : ViewModel() 
 
     fun skip() = finish()
 
+    /**
+     * Call whenever the data layer shows the landlord already has at least
+     * one property, independent of whether the guided tour was ever stepped
+     * through to completion — e.g. a property existed before onboarding
+     * could run, or the 4-step intro was dismissed mid-way without reaching
+     * Finished. Without this, hasSeenFlow stays false forever and the tour
+     * re-shows on every launch even though there's nothing left to onboard.
+     */
+    fun finishIfPropertiesAlreadyExist() {
+        if (_stage.value == OnboardingStage.Finished) return
+        finish()
+    }
+
     private fun finish() {
         _stage.value = OnboardingStage.Finished
         viewModelScope.launch { prefs.markSeen() }

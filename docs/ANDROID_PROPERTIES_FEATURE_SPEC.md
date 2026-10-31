@@ -202,7 +202,7 @@ Pre-filled from the selected flat.
 - **Monthly rent** — this flat only.
 - **Electricity / House tax / Water tax numbers** — apply to all sibling flats.
 - **No Property ID field** (immutable after creation).
-- **No photo re-upload** on this form.
+- **Photo** — current photo (branded placeholder while loading) or an "Add a photo of the building" tile; **Change photo** / **Remove photo**. Applied on Save to **all sibling flats**: a new image is uploaded (same compression/path as create) and set as `photoUrl`, or `photoUrl` is deleted. Old Storage file is kept.
 - **No property-type change** on this form.
 - Validation: name/address non-empty; rent `> 0`.
 - `isMultiUnit` for rendering purposes = `propertyType?.supportsMultipleUnits`, falling back to "`unit` field is non-empty" for legacy docs without a `propertyType`.

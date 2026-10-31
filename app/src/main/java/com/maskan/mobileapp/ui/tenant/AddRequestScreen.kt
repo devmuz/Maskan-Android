@@ -103,7 +103,7 @@ fun AddRequestScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, onCa
                 }
             }
 
-            AppTextField(value = title, onValueChange = { title = it }, label = "Issue Title", placeholder = "e.g. Leaking kitchen tap")
+            AppTextField(value = title, onValueChange = { title = it }, label = "Issue Title", placeholder = category.titlePlaceholder)
             AppTextField(
                 value = details,
                 onValueChange = { details = it },

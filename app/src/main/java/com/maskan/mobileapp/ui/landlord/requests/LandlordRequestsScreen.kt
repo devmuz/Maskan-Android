@@ -36,7 +36,7 @@ import com.maskan.mobileapp.data.model.ServiceRequest
 import com.maskan.mobileapp.data.model.ServiceRequestStatus
 import com.maskan.mobileapp.ui.components.EmptyState
 import com.maskan.mobileapp.ui.components.MaskanCard
-import com.maskan.mobileapp.ui.components.SegmentedControl
+import com.maskan.mobileapp.ui.components.FilterChipBar
 import com.maskan.mobileapp.ui.components.StatusBadge
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
 import com.maskan.mobileapp.ui.theme.MaskanDimens
@@ -92,7 +92,7 @@ fun LandlordRequestsScreen(viewModel: LandlordViewModel, onBack: () -> Unit, onR
         ) {
             item { Text(text = "Service Requests", style = MaskanType.screenTitle, color = colors.textPrimary) }
             item {
-                SegmentedControl(
+                FilterChipBar(
                     options = RequestFilter.entries,
                     selected = filter,
                     onSelect = { filter = it },

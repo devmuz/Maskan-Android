@@ -84,6 +84,7 @@ import com.maskan.mobileapp.ui.landlord.settings.PaywallScreen
 import com.maskan.mobileapp.ui.landlord.tenants.AssignTenantScreen
 import com.maskan.mobileapp.ui.landlord.tenants.EditTenantScreen
 import com.maskan.mobileapp.ui.landlord.tenants.TenantDetailScreen
+import com.maskan.mobileapp.ui.landlord.tenants.TenantDocumentsScreen
 import com.maskan.mobileapp.ui.landlord.tenants.TenantPaymentHistoryScreen
 import com.maskan.mobileapp.ui.landlord.tenants.TenantsScreen
 
@@ -125,6 +126,17 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
     val coachMarkStage by coachMarkSequencer.stage.collectAsStateWithLifecycle()
     val coachMarkInitialStageResolved by coachMarkSequencer.initialStageResolved.collectAsStateWithLifecycle()
     var dismissedAddButtonHint by remember { mutableStateOf(false) }
+
+    // A landlord who already has a property (however it was added) shouldn't
+    // see the "add property" tour — the sequencer only advances via its own
+    // 4-step intro UI, so this check against the real data is what actually
+    // makes the "seen" flag stick once there's nothing left to onboard.
+    val properties by viewModel.properties.collectAsStateWithLifecycle()
+    LaunchedEffect(properties.isNotEmpty()) {
+        if (properties.isNotEmpty()) {
+            coachMarkSequencer.finishIfPropertiesAlreadyExist()
+        }
+    }
 
     val backStackEntry by innerNavController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -274,6 +286,17 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     onEdit = { innerNavController.navigate("edit_tenant/$it") },
                     onViewAllPayments = { innerNavController.navigate("tenant_payment_history/$it") },
                     onRecordPayment = { innerNavController.navigate("record_payment/$it") },
+                    onDocumentsClick = { innerNavController.navigate("tenant_documents/$it") },
+                )
+            }
+            composable("tenant_documents/{tenantId}", arguments = listOf(navArgument("tenantId") { type = NavType.StringType })) { entry ->
+                val tenantId = entry.arguments?.getString("tenantId").orEmpty()
+                val tenants by viewModel.tenants.collectAsStateWithLifecycle()
+                val landlordId = tenants.find { it.id == tenantId }?.landlordId ?: viewModel.landlordUid
+                TenantDocumentsScreen(
+                    tenantId = tenantId,
+                    landlordId = landlordId,
+                    onBack = { innerNavController.popBackStack() },
                 )
             }
             composable(

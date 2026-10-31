@@ -45,7 +45,7 @@ import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.data.util.PeriodFormatter
 import com.maskan.mobileapp.ui.components.EmptyState
 import com.maskan.mobileapp.ui.components.MaskanCard
-import com.maskan.mobileapp.ui.components.SegmentedControl
+import com.maskan.mobileapp.ui.components.FilterChipBar
 import com.maskan.mobileapp.ui.components.StatusBadge
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
 import com.maskan.mobileapp.ui.landlord.LocalLandlordContentBottomInset
@@ -143,7 +143,7 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
                 }
             }
             item {
-                SegmentedControl(
+                FilterChipBar(
                     options = BillFilter.entries,
                     selected = filter,
                     onSelect = { filter = it },
