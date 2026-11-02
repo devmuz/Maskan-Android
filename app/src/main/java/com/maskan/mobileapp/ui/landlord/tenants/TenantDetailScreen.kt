@@ -41,6 +41,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.graphics.Color
@@ -54,6 +55,7 @@ import com.maskan.mobileapp.data.model.BillStatus
 import com.maskan.mobileapp.data.model.Payment
 import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.data.util.PeriodFormatter
+import com.maskan.mobileapp.ui.components.DetailRow
 import com.maskan.mobileapp.ui.components.GradientButton
 import com.maskan.mobileapp.ui.components.MaskanCard
 import com.maskan.mobileapp.ui.components.StatusBadge
@@ -86,11 +88,13 @@ fun TenantDetailScreen(
 
     val tenants by viewModel.tenants.collectAsStateWithLifecycle()
     val properties by viewModel.properties.collectAsStateWithLifecycle()
+    val archivedProperties by viewModel.archivedProperties.collectAsStateWithLifecycle()
     val bills by viewModel.bills.collectAsStateWithLifecycle()
     val payments by viewModel.payments.collectAsStateWithLifecycle()
 
     val tenant = tenants.find { it.id == tenantId }
-    val property = tenant?.let { t -> properties.find { it.id == t.resolvedPropertyId } }
+    // Include deleted properties so an old tenant of a since-deleted property still opens (as on iOS).
+    val property = tenant?.let { t -> (properties + archivedProperties).find { it.id == t.resolvedPropertyId } }
 
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
 
@@ -147,7 +151,7 @@ fun TenantDetailScreen(
         ) {
             MaskanCard(modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(text = tenant.name, style = MaskanType.sectionTitle, color = colors.textPrimary)
                         val propertyLabel = if (property.unit.isNotBlank()) "${property.unit} · ${property.displayBuildingName}" else property.displayBuildingName
                         Text(text = propertyLabel, style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
@@ -155,7 +159,9 @@ fun TenantDetailScreen(
                     if (tenant.contact.isNotBlank()) {
                         Box(
                             modifier = Modifier
+                                .padding(start = 12.dp)
                                 .size(44.dp)
+                                .clip(CircleShape)
                                 .background(colors.primaryGradient, CircleShape)
                                 .clickable {
                                     if (com.maskan.mobileapp.data.util.isWhatsAppInstalled(context)) {
@@ -175,12 +181,16 @@ fun TenantDetailScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(text = "#", style = MaskanType.secondary, color = colors.gradientStart)
-                        Text(text = tenant.propertyIdCode, style = MaskanType.secondary, color = colors.gradientStart)
-                    }
+                    Text(text = "# ${tenant.propertyIdCode}", style = MaskanType.secondary, color = colors.gradientStart, maxLines = 1, softWrap = false)
                     tenant.moveInDate?.let {
-                        Text(text = "Since ${dateFormat.format(it)}", style = MaskanType.secondary, color = colors.textSecondary)
+                        Text(
+                            text = "Since ${dateFormat.format(it)}",
+                            style = MaskanType.secondary,
+                            color = colors.textSecondary,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.padding(start = 12.dp),
+                        )
                     }
                 }
             }
@@ -196,7 +206,7 @@ fun TenantDetailScreen(
                     }
                     rows.forEachIndexed { index, (label, value) ->
                         if (index > 0) Spacer(modifier = androidx.compose.ui.Modifier.height(8.dp))
-                        DetailRow(label, value)
+                        DetailRow(label, value, verticalPadding = 0.dp)
                     }
                 }
             }
@@ -215,7 +225,7 @@ fun TenantDetailScreen(
 
             if (tenant.isActive) {
                 MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                    DetailRow("Monthly rent", AmountFormatter.format(property.monthlyRent, currencyCode))
+                    DetailRow("Monthly rent", AmountFormatter.format(property.monthlyRent, currencyCode), verticalPadding = 0.dp)
                     Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable { showDueDayMenu = true }, horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(text = "Payment due day", style = MaskanType.body, color = colors.textSecondary)
                         Box {
@@ -456,14 +466,6 @@ private fun hasExtraDetails(tenant: com.maskan.mobileapp.data.model.Tenant): Boo
         !tenant.alternateContact.isNullOrBlank() ||
         !tenant.permanentAddress.isNullOrBlank()
 
-@Composable
-private fun DetailRow(label: String, value: String) {
-    val colors = MaskanTheme.colors
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(text = label, style = MaskanType.body, color = colors.textSecondary)
-        Text(text = value, style = MaskanType.bodyMedium, color = colors.textPrimary)
-    }
-}
 
 @Composable
 fun PaymentHistoryRow(payment: Payment, billType: com.maskan.mobileapp.data.model.BillType?, currencyCode: String, dateFormat: SimpleDateFormat) {
@@ -473,7 +475,7 @@ fun PaymentHistoryRow(payment: Payment, billType: com.maskan.mobileapp.data.mode
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
                 modifier = Modifier.size(36.dp).background(billType?.let { billTypeColor(it) } ?: colors.textTertiary, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
@@ -490,7 +492,7 @@ fun PaymentHistoryRow(payment: Payment, billType: com.maskan.mobileapp.data.mode
                 Text(text = payment.method, style = MaskanType.secondary, color = colors.textSecondary)
             }
         }
-        Column(horizontalAlignment = Alignment.End) {
+        Column(modifier = Modifier.padding(start = 12.dp), horizontalAlignment = Alignment.End) {
             Text(text = AmountFormatter.format(payment.amount, currencyCode), style = MaskanType.bodyMedium, color = colors.textPrimary)
             Text(text = payment.paidDate?.let { dateFormat.format(it) } ?: "", style = MaskanType.secondary, color = colors.textSecondary)
         }

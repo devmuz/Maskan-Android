@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maskan.mobileapp.data.model.BillStatus
 import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.data.util.PeriodFormatter
+import com.maskan.mobileapp.ui.components.DetailRow
 import com.maskan.mobileapp.ui.components.GradientButton
 import com.maskan.mobileapp.ui.components.MaskanCard
 import com.maskan.mobileapp.ui.components.StatusBadge
@@ -132,11 +133,3 @@ fun BillDetailScreen(
     }
 }
 
-@Composable
-private fun DetailRow(label: String, value: String) {
-    val colors = MaskanTheme.colors
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(text = label, style = MaskanType.body, color = colors.textSecondary)
-        Text(text = value, style = MaskanType.bodyMedium, color = colors.textPrimary)
-    }
-}

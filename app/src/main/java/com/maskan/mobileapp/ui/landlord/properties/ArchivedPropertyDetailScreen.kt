@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.maskan.mobileapp.ui.components.DetailRow
 import com.maskan.mobileapp.ui.components.PropertyPhoto
 import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.ui.components.BillExpenseRow
@@ -126,11 +127,11 @@ fun ArchivedPropertyDetailScreen(
             }
 
             MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                DetailRow("Address", property.address)
-                DetailRow("Monthly Rent", "${AmountFormatter.format(property.monthlyRent, currencyCode)} / month")
-                property.electricityAccountNumber?.takeIf { it.isNotBlank() }?.let { DetailRow("Electricity account", it) }
-                property.houseTaxNumber?.takeIf { it.isNotBlank() }?.let { DetailRow("House tax number", it) }
-                property.waterTaxNumber?.takeIf { it.isNotBlank() }?.let { DetailRow("Water tax number", it) }
+                DetailRow("Address", property.address, verticalPadding = 8.dp)
+                DetailRow("Monthly Rent", "${AmountFormatter.format(property.monthlyRent, currencyCode)} / month", verticalPadding = 8.dp)
+                property.electricityAccountNumber?.takeIf { it.isNotBlank() }?.let { DetailRow("Electricity account", it, verticalPadding = 8.dp) }
+                property.houseTaxNumber?.takeIf { it.isNotBlank() }?.let { DetailRow("House tax number", it, verticalPadding = 8.dp) }
+                property.waterTaxNumber?.takeIf { it.isNotBlank() }?.let { DetailRow("Water tax number", it, verticalPadding = 8.dp) }
             }
 
             MaskanCard(
@@ -148,8 +149,8 @@ fun ArchivedPropertyDetailScreen(
             if (lastTenant != null) {
                 MaskanCard(modifier = Modifier.fillMaxWidth()) {
                     Text(text = "LAST TENANT", style = MaskanType.overline, color = colors.textTertiary)
-                    DetailRow("Name", lastTenant.name)
-                    lastTenant.moveOutDate?.let { DetailRow("Moved out", dateFormat.format(it)) }
+                    DetailRow("Name", lastTenant.name, verticalPadding = 8.dp)
+                    lastTenant.moveOutDate?.let { DetailRow("Moved out", dateFormat.format(it), verticalPadding = 8.dp) }
                     StatusBadge(
                         text = if (lastTenant.isDeleted) "Removed" else "Moved Out",
                         color = colors.textTertiary,
@@ -185,11 +186,3 @@ fun ArchivedPropertyDetailScreen(
     }
 }
 
-@Composable
-private fun DetailRow(label: String, value: String) {
-    val colors = MaskanTheme.colors
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(text = label, style = MaskanType.body, color = colors.textSecondary)
-        Text(text = value, style = MaskanType.bodyMedium, color = colors.textPrimary)
-    }
-}

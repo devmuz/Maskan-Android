@@ -50,7 +50,8 @@ fun TenantPaymentHistoryScreen(viewModel: LandlordViewModel, tenantId: String, o
     val payments by viewModel.payments.collectAsStateWithLifecycle()
 
     val tenant = tenants.find { it.id == tenantId }
-    val property = tenant?.let { t -> properties.find { it.id == t.resolvedPropertyId } }
+    val archivedProperties by viewModel.archivedProperties.collectAsStateWithLifecycle()
+    val property = tenant?.let { t -> (properties + archivedProperties).find { it.id == t.resolvedPropertyId } }
     val currencyCode = property?.currency ?: "USD"
     val billsById = remember(bills) { bills.associateBy { it.id } }
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }

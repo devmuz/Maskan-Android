@@ -222,7 +222,7 @@ private fun BillRow(bill: Bill, currencyCode: String, dateFormat: SimpleDateForm
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(
                 modifier = Modifier.size(36.dp).background(colors.gradientStart.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
@@ -243,7 +243,7 @@ private fun BillRow(bill: Bill, currencyCode: String, dateFormat: SimpleDateForm
                 )
             }
         }
-        Column(horizontalAlignment = Alignment.End) {
+        Column(modifier = Modifier.padding(start = 12.dp), horizontalAlignment = Alignment.End) {
             Text(text = AmountFormatter.format(bill.amount, currencyCode), style = MaskanType.bodyMedium, color = colors.textPrimary)
             StatusBadge(text = landlordDisplayLabel, color = statusColor, modifier = Modifier.padding(top = 4.dp))
         }

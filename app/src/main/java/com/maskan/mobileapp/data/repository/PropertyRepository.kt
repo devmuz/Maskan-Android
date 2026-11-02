@@ -92,13 +92,24 @@ class PropertyRepository(
     private val _archivedProperties = MutableStateFlow<List<Property>>(emptyList())
     val archivedProperties: StateFlow<List<Property>> = _archivedProperties
 
+    /**
+     * True once [properties] reflects the server (or a non-empty cached
+     * result). An empty first snapshot from the local cache — e.g. right
+     * after a fresh install — doesn't count, so callers like the landlord
+     * shell's initial-tab choice don't mistake "not loaded yet" for "none".
+     */
+    private val _hasLoaded = MutableStateFlow(false)
+    val hasLoaded: StateFlow<Boolean> = _hasLoaded
+
     private var listenerJob: Job? = null
 
     fun startListening(scope: CoroutineScope, landlordId: String) {
         listenerJob?.cancel()
-        listenerJob = propertyFlow(landlordId).onEach { list ->
+        _hasLoaded.value = false
+        listenerJob = propertyFlow(landlordId).onEach { (list, fromCache) ->
             _properties.value = list.filterNot { it.isArchived }
             _archivedProperties.value = list.filter { it.isArchived }
+            if (!fromCache || list.isNotEmpty()) _hasLoaded.value = true
         }.launchIn(scope)
     }
 
@@ -107,20 +118,21 @@ class PropertyRepository(
         listenerJob = null
         _properties.value = emptyList()
         _archivedProperties.value = emptyList()
+        _hasLoaded.value = false
     }
 
     /** Merges owner + co-owner matches, deduped by doc id — mirrors TenantRepository's dual-query pattern. */
     private fun propertyFlow(landlordId: String) = combine(
         ownedPropertyFlow(landlordId),
         coOwnedPropertyFlow(landlordId),
-    ) { owned, coOwned -> (owned + coOwned).distinctBy { it.id } }
+    ) { owned, coOwned -> (owned.first + coOwned.first).distinctBy { it.id } to (owned.second || coOwned.second) }
 
     private fun ownedPropertyFlow(landlordId: String) = callbackFlow {
         val registration = propertiesCollection
             .whereEqualTo("landlordId", landlordId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) return@addSnapshotListener
-                trySend(snapshot?.toObjects(Property::class.java).orEmpty())
+                trySend(snapshot?.toObjects(Property::class.java).orEmpty() to (snapshot?.metadata?.isFromCache ?: true))
             }
         awaitClose { registration.remove() }
     }
@@ -130,7 +142,7 @@ class PropertyRepository(
             .whereArrayContains("coOwners", landlordId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) return@addSnapshotListener
-                trySend(snapshot?.toObjects(Property::class.java).orEmpty())
+                trySend(snapshot?.toObjects(Property::class.java).orEmpty() to (snapshot?.metadata?.isFromCache ?: true))
             }
         awaitClose { registration.remove() }
     }

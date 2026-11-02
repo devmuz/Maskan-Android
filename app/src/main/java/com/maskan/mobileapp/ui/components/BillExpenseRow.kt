@@ -50,7 +50,7 @@ fun BillExpenseRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier.size(40.dp).background(iconTint.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
@@ -66,7 +66,7 @@ fun BillExpenseRow(
                 Text(text = dateText, style = MaskanType.secondary, color = colors.textSecondary)
             }
         }
-        Column(horizontalAlignment = Alignment.End) {
+        Column(modifier = Modifier.padding(start = 12.dp), horizontalAlignment = Alignment.End) {
             Text(text = amount, style = MaskanType.bodyMedium, color = colors.textPrimary)
             StatusBadge(text = statusLabel, color = statusColor, modifier = Modifier.padding(top = 4.dp))
         }

@@ -75,7 +75,7 @@ fun BillRow(bill: Bill, currencyCode: String, onClick: () -> Unit, modifier: Mod
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
                 modifier = Modifier.size(36.dp).background(colors.gradientStart.copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center,
@@ -87,7 +87,7 @@ fun BillRow(bill: Bill, currencyCode: String, onClick: () -> Unit, modifier: Mod
                 Text(text = dateLabel, style = MaskanType.secondary, color = colors.textSecondary)
             }
         }
-        Column(horizontalAlignment = Alignment.End) {
+        Column(modifier = Modifier.padding(start = 12.dp), horizontalAlignment = Alignment.End) {
             Text(text = AmountFormatter.format(bill.amount, currencyCode), style = MaskanType.bodyMedium, color = colors.textPrimary)
             Text(text = statusLabel, style = MaskanType.caption, color = statusColor)
         }

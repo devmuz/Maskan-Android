@@ -216,14 +216,14 @@ fun BuildingDetailScreen(
                     group.flats.forEach { flat ->
                         MaskanCard(modifier = Modifier.fillMaxWidth().clickable { onFlatClick(flat.id) }) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(text = flat.displayTitle, style = MaskanType.bodyMedium, color = colors.textPrimary)
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text(text = "#", style = MaskanType.secondary, color = colors.gradientStart)
                                         Text(text = flat.propertyIdCode, style = MaskanType.secondary, color = colors.gradientStart)
                                     }
                                 }
-                                Column(horizontalAlignment = Alignment.End) {
+                                Column(modifier = Modifier.padding(start = 12.dp), horizontalAlignment = Alignment.End) {
                                     StatusBadge(text = if (flat.occupied) "Occupied" else "Vacant", color = if (flat.occupied) colors.success else colors.warning)
                                     Text(
                                         text = "${AmountFormatter.format(flat.monthlyRent, flat.currency ?: currencyCode)} / month",

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -188,46 +189,53 @@ private fun TenantRow(
     var menuExpanded by remember { mutableStateOf(false) }
 
     MaskanCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-            Column {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(text = tenant.name, style = MaskanType.cardTitle, color = colors.textPrimary)
                 val propertyLabel = property?.let {
                     if (it.unit.isNotBlank()) "${it.unit} · ${it.displayBuildingName}" else it.displayBuildingName
                 } ?: ""
                 Text(text = propertyLabel, style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
-                Row(modifier = Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = "#", style = MaskanType.secondary, color = colors.gradientStart)
-                    Text(text = tenant.propertyIdCode, style = MaskanType.secondary, color = colors.gradientStart)
-                }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Box {
-                    Icon(
-                        Icons.Filled.MoreVert,
-                        contentDescription = "Options",
-                        tint = colors.textSecondary,
-                        modifier = Modifier.clickable { menuExpanded = true },
-                    )
-                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        DropdownMenuItem(text = { Text("Edit") }, onClick = { menuExpanded = false; onEdit() })
-                        DropdownMenuItem(
-                            text = { Text(if (tenant.isActive) "Mark Moved Out" else "Remove") },
-                            onClick = { menuExpanded = false; onRemove() },
-                        )
-                    }
-                }
-                val dateLabel = if (tenant.isActive) {
-                    tenant.moveInDate?.let { "Since ${dateFormat.format(it)}" } ?: ""
-                } else {
-                    tenant.moveOutDate?.let { "Moved out ${dateFormat.format(it)}" } ?: "Moved out"
-                }
-                Text(
-                    text = dateLabel,
-                    style = MaskanType.secondary,
-                    color = if (tenant.isActive) colors.textSecondary else colors.warning,
-                    modifier = Modifier.padding(top = 22.dp),
+            Box(modifier = Modifier.padding(start = 8.dp)) {
+                Icon(
+                    Icons.Filled.MoreVert,
+                    contentDescription = "Options",
+                    tint = colors.textSecondary,
+                    modifier = Modifier.clickable { menuExpanded = true },
                 )
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(text = { Text("Edit") }, onClick = { menuExpanded = false; onEdit() })
+                    DropdownMenuItem(
+                        text = { Text(if (tenant.isActive) "Mark Moved Out" else "Remove") },
+                        onClick = { menuExpanded = false; onRemove() },
+                    )
+                }
             }
+        }
+        // ID and date share one line; each stays on a single line rather than
+        // wrapping character-by-character when space is tight.
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "# ${tenant.propertyIdCode}",
+                style = MaskanType.secondary,
+                color = colors.gradientStart,
+                maxLines = 1,
+                softWrap = false,
+            )
+            Spacer(modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+            val dateLabel = if (tenant.isActive) {
+                tenant.moveInDate?.let { "Since ${dateFormat.format(it)}" } ?: ""
+            } else {
+                tenant.moveOutDate?.let { "Moved out ${dateFormat.format(it)}" } ?: "Moved out"
+            }
+            Text(
+                text = dateLabel,
+                style = MaskanType.secondary,
+                color = if (tenant.isActive) colors.textSecondary else colors.warning,
+                maxLines = 1,
+                softWrap = false,
+            )
         }
     }
 }

@@ -47,6 +47,7 @@ import com.maskan.mobileapp.data.model.Payment
 import com.maskan.mobileapp.data.model.PaymentMethods
 import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.data.util.PeriodFormatter
+import com.maskan.mobileapp.ui.components.DetailRow
 import com.maskan.mobileapp.ui.components.AppTextField
 import com.maskan.mobileapp.ui.components.GradientButton
 import com.maskan.mobileapp.ui.components.MaskanCard
@@ -255,14 +256,6 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
     }
 }
 
-@Composable
-private fun DetailRow(label: String, value: String) {
-    val colors = MaskanTheme.colors
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(text = label, style = MaskanType.body, color = colors.textSecondary)
-        Text(text = value, style = MaskanType.bodyMedium, color = colors.textPrimary)
-    }
-}
 
 @Composable
 private fun PaymentRow(payment: Payment, currencyCode: String, dateFormat: SimpleDateFormat) {

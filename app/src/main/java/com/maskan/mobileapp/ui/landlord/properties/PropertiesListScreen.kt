@@ -230,7 +230,7 @@ private fun PropertyGroupCard(
 }
                 Text(text = group.address, style = MaskanType.secondary, color = colors.textSecondary)
             }
-            Column(horizontalAlignment = Alignment.End) {
+            Column(modifier = Modifier.padding(start = 12.dp), horizontalAlignment = Alignment.End) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = if (isUploadingPhoto) "Uploading photo…" else "${group.occupiedCount}/${group.totalCount} occupied",
@@ -254,14 +254,14 @@ private fun PropertyGroupCard(
                     shadowRadius = MaskanDimens.rowShadowRadius,
                 ) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(text = flat.displayTitle, style = MaskanType.bodyMedium, color = colors.textPrimary)
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(text = "#", style = MaskanType.secondary, color = colors.gradientStart)
                                 Text(text = flat.propertyIdCode, style = MaskanType.secondary, color = colors.gradientStart)
                             }
                         }
-                        Column(horizontalAlignment = Alignment.End) {
+                        Column(modifier = Modifier.padding(start = 12.dp), horizontalAlignment = Alignment.End) {
                             StatusBadge(
                                 text = if (flat.occupied) "Occupied" else "Vacant",
                                 color = if (flat.occupied) colors.success else colors.warning,
@@ -296,11 +296,11 @@ private fun ArchivedPropertyGroupCard(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(text = group.buildingName, style = MaskanType.cardTitle, color = colors.textPrimary)
                 Text(text = group.address, style = MaskanType.secondary, color = colors.textSecondary)
             }
-            Column(horizontalAlignment = Alignment.End) {
+            Column(modifier = Modifier.padding(start = 12.dp), horizontalAlignment = Alignment.End) {
                 StatusBadge(text = "Deleted", color = colors.danger)
                 group.propertyType?.let {
                     Text(text = it.label, style = MaskanType.bodyMedium, color = colors.gradientStart, modifier = Modifier.padding(top = 4.dp))
@@ -314,14 +314,14 @@ private fun ArchivedPropertyGroupCard(
                     shadowRadius = MaskanDimens.rowShadowRadius,
                 ) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(text = flat.displayTitle, style = MaskanType.bodyMedium, color = colors.textPrimary)
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(text = "#", style = MaskanType.secondary, color = colors.gradientStart)
                                 Text(text = flat.propertyIdCode, style = MaskanType.secondary, color = colors.gradientStart)
                             }
                         }
-                        Column(horizontalAlignment = Alignment.End) {
+                        Column(modifier = Modifier.padding(start = 12.dp), horizontalAlignment = Alignment.End) {
                             Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
                             Text(
                                 text = "${AmountFormatter.format(flat.monthlyRent, flat.currency ?: currencyCode)} / month",

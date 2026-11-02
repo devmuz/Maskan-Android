@@ -33,6 +33,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,7 +125,6 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
     val anchorRegistry = remember { CoachMarkAnchorRegistry() }
     val coachMarkSequencer: CoachMarkSequencer = viewModel(factory = CoachMarkSequencer.Factory(container.coachmarkPreferences))
     val coachMarkStage by coachMarkSequencer.stage.collectAsStateWithLifecycle()
-    val coachMarkInitialStageResolved by coachMarkSequencer.initialStageResolved.collectAsStateWithLifecycle()
     var dismissedAddButtonHint by remember { mutableStateOf(false) }
 
     // A landlord who already has a property (however it was added) shouldn't
@@ -145,15 +145,20 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
     val navBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val contentBottomInset = navBarInset + MaskanDimens.glassBarContentClearance
 
-    // First-time landlord lands on Properties (instead of Dashboard) so the "point at the
-    // Add button" coachmark step is immediately visible, same as iOS's selectedTab trick —
-    // this only fires once, right after the async DataStore "has seen onboarding" read resolves.
-    LaunchedEffect(coachMarkInitialStageResolved) {
-        if (coachMarkInitialStageResolved && coachMarkStage == OnboardingStage.PointAtAddButton) {
-            innerNavController.navigate(LandlordTab.PROPERTIES) {
-                popUpTo(innerNavController.graph.findStartDestination().id) { saveState = true }
-                launchSingleTop = true
-                restoreState = true
+    // Land on Properties only when the landlord has no properties yet (so the "add your first
+    // property" path — and the onboarding Add-button hint — is right there); otherwise stay on
+    // Dashboard. Decided once per session, after the property list has really loaded.
+    val propertiesLoaded by viewModel.propertiesLoaded.collectAsStateWithLifecycle()
+    var initialTabChosen by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(propertiesLoaded) {
+        if (propertiesLoaded && !initialTabChosen) {
+            initialTabChosen = true
+            if (properties.isEmpty()) {
+                innerNavController.navigate(LandlordTab.PROPERTIES) {
+                    popUpTo(innerNavController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
             }
         }
     }
