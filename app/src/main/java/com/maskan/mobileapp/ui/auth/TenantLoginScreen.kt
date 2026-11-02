@@ -50,9 +50,9 @@ fun TenantLoginScreen(navController: NavHostController) {
             value = propertyId,
             onValueChange = { propertyId = it.uppercase(); error = null },
             label = "Property ID",
-            placeholder = "ABCDE123",
+            placeholder = "e.g. ABCDE123",
         )
-        AppTextField(value = password, onValueChange = { password = it; error = null }, label = "Password", isPassword = true)
+        AppTextField(value = password, onValueChange = { password = it; error = null }, label = "Password", placeholder = "Your password", isPassword = true)
 
         error?.let {
             Text(text = it, style = MaskanType.secondary.copy(fontWeight = FontWeight.Medium), color = colors.danger)

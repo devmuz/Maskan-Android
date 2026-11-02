@@ -84,7 +84,7 @@ fun ForgotPasswordSheetContent(prefilledEmail: String, onDone: () -> Unit) {
                 color = colors.textSecondary,
                 textAlign = TextAlign.Center,
             )
-            AppTextField(value = email, onValueChange = { email = it; error = null }, label = "Email", keyboardType = KeyboardType.Email)
+            AppTextField(value = email, onValueChange = { email = it; error = null }, label = "Email", placeholder = "you@example.com", keyboardType = KeyboardType.Email)
             error?.let { Text(text = it, style = MaskanType.secondary, color = colors.danger) }
             GradientButton(
                 text = "Send Reset Link",

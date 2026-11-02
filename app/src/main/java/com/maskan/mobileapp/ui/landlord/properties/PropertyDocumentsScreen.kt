@@ -72,9 +72,12 @@ import java.util.Locale
  * Unlike iOS, there's no local disk cache + QuickLook preview here — tapping
  * a row opens the file's Storage download URL in an external viewer
  * (browser/PDF app) instead of downloading into an app-private cache first.
+ *
+ * [locked]: the property is over the free-plan limit — documents can be
+ * viewed but not uploaded; + opens the paywall instead (as on iOS).
  */
 @Composable
-fun PropertyDocumentsScreen(propertyId: String, onBack: () -> Unit) {
+fun PropertyDocumentsScreen(propertyId: String, onBack: () -> Unit, locked: Boolean = false, onUpgradeRequired: () -> Unit = {}) {
     val colors = MaskanTheme.colors
     val context = LocalContext.current
     val container = LocalAppContainer.current
@@ -121,7 +124,7 @@ fun PropertyDocumentsScreen(propertyId: String, onBack: () -> Unit) {
                 if (isUploading) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = colors.gradientStart, strokeWidth = 2.dp)
                 } else {
-                    IconButton(onClick = { showUploadMenu = true }) {
+                    IconButton(onClick = { if (locked) onUpgradeRequired() else showUploadMenu = true }) {
                         Icon(Icons.Filled.Add, contentDescription = "Add document", tint = colors.gradientStart)
                     }
                 }
@@ -141,7 +144,7 @@ fun PropertyDocumentsScreen(propertyId: String, onBack: () -> Unit) {
         }
 
         if (documents.isEmpty() && !isUploading) {
-            EmptyDocuments()
+            EmptyDocuments(locked)
         } else {
             Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = MaskanDimens.screenHPadding)) {
                 MaskanCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 24.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
@@ -196,7 +199,7 @@ fun PropertyDocumentsScreen(propertyId: String, onBack: () -> Unit) {
 }
 
 @Composable
-private fun EmptyDocuments() {
+private fun EmptyDocuments(locked: Boolean) {
     val colors = MaskanTheme.colors
     Column(
         modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
@@ -208,7 +211,7 @@ private fun EmptyDocuments() {
         Text(text = "No documents yet", style = MaskanType.sectionTitle, color = colors.textPrimary)
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = "Tap + to upload a PDF or image\nfor this property.",
+            text = if (locked) "This property is locked on the free plan.\nUpgrade to Pro to upload documents." else "Tap + to upload a PDF or image\nfor this property.",
             style = MaskanType.secondary,
             color = colors.textSecondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,

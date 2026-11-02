@@ -56,6 +56,15 @@ class LandlordViewModel(private val container: AppContainer) : ViewModel() {
         _uploadingPhotoPropertyIds.value = _uploadingPhotoPropertyIds.value - propertyIds.toSet()
     }
 
+    // Set when the background photo upload after Add Property fails; the
+    // Properties list shows it as an alert (iOS `photoUploadError`).
+    private val _photoUploadError = MutableStateFlow<String?>(null)
+    val photoUploadError: StateFlow<String?> = _photoUploadError
+
+    fun reportPhotoUploadError(message: String?) {
+        _photoUploadError.value = message
+    }
+
     init {
         val id = landlordId
         container.propertyRepository.startListening(viewModelScope, id)

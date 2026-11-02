@@ -57,9 +57,15 @@ class TenantSessionViewModel(private val container: AppContainer) : ViewModel() 
         .flatMapLatest { id -> if (id == null) flowOf(null) else container.propertyRepository.propertyDocFlow(id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    /** Set when the bills listener fails (e.g. a permission error); Home shows "Couldn't load bills". */
+    private val _billsError = MutableStateFlow<String?>(null)
+    val billsError: StateFlow<String?> = _billsError
+
     /** Bills visible to the tenant exclude the landlord's own property expenses (09-tenant-app.md). */
     val bills: StateFlow<List<Bill>> = _resolvedPropertyId
-        .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else container.billingRepository.billsForPropertyFlow(id) }
+        .flatMapLatest { id ->
+            if (id == null) flowOf(emptyList()) else container.billingRepository.billsForPropertyFlow(id) { _billsError.value = it }
+        }
         .map { list -> list.filter { it.paidBy != PaidBy.LANDLORD } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 

@@ -104,8 +104,8 @@ fun LandlordRequestsScreen(viewModel: LandlordViewModel, onBack: () -> Unit, onR
                 item {
                     EmptyState(
                         icon = Icons.Filled.RequestPage,
-                        title = if (filter == RequestFilter.ALL) "No requests yet" else "No ${filter.label.lowercase()} requests",
-                        message = "Requests submitted by your tenants will appear here.",
+                        title = "No requests",
+                        message = if (filter == RequestFilter.ALL) "Tenants haven't submitted any service requests yet." else "No ${filter.label.lowercase()} requests right now.",
                     )
                 }
             } else {

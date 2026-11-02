@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.tenant
 
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.maskan.mobileapp.ui.components.GradientButton
 import com.maskan.mobileapp.data.model.ServiceRequestCategory
 import com.maskan.mobileapp.ui.components.AppTextField
 import com.maskan.mobileapp.ui.theme.MaskanDimens
@@ -61,25 +63,7 @@ fun AddRequestScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, onCa
         ) {
             IconButton(onClick = onCancel) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
             Text(text = "New Request", style = MaskanType.cardTitle, color = colors.textPrimary)
-            Text(
-                text = if (isSaving) "Saving…" else "Submit",
-                style = MaskanType.body.copy(fontWeight = FontWeight.SemiBold),
-                color = if (isValid && !isSaving) colors.gradientStart else colors.textTertiary,
-                modifier = Modifier.clickable(enabled = isValid && !isSaving) {
-                    isSaving = true
-                    error = null
-                    scope.launch {
-                        try {
-                            viewModel.submitRequest(title.trim(), details.trim(), category)
-                            onDone()
-                        } catch (t: Throwable) {
-                            error = t.message ?: "Couldn't submit this request."
-                        } finally {
-                            isSaving = false
-                        }
-                    }
-                }.padding(end = 12.dp),
-            )
+            Box(modifier = Modifier.size(width = 56.dp, height = 1.dp))
         }
 
         Column(
@@ -87,7 +71,7 @@ fun AddRequestScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, onCa
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
             Column {
-                Text(text = "CATEGORY", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
+                Text(text = "Category", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
                 ServiceRequestCategory.entries.toList().chunked(3).forEach { row ->
                     Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         row.forEach { option ->
@@ -108,12 +92,32 @@ fun AddRequestScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, onCa
                 value = details,
                 onValueChange = { details = it },
                 label = "Details (optional)",
-                placeholder = "Describe the issue…",
+                placeholder = "More details about the issue…",
                 singleLine = false,
                 minLines = 4,
             )
 
             error?.let { Text(text = it, style = MaskanType.secondary, color = colors.danger) }
+            GradientButton(
+                text = "Submit Request",
+                isLoading = isSaving,
+                loadingText = "Submitting…",
+                enabled = isValid,
+                onClick = {
+                    isSaving = true
+                    error = null
+                    scope.launch {
+                        try {
+                            viewModel.submitRequest(title.trim(), details.trim(), category)
+                            onDone()
+                        } catch (t: Throwable) {
+                            error = t.message ?: "Couldn't submit this request."
+                        } finally {
+                            isSaving = false
+                        }
+                    }
+                },
+            )
             Box(modifier = Modifier.padding(bottom = 24.dp))
         }
     }

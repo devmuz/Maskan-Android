@@ -106,7 +106,7 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
                         icon = Icons.Filled.People,
                         title = if (filter == TenantFilter.ACTIVE) "No active tenants" else "No old tenants",
                         message = if (filter == TenantFilter.ACTIVE) {
-                            "Assign a tenant to one of your vacant properties to get started"
+                            "Assign a tenant to one of your vacant properties to get started."
                         } else {
                             "Tenants you mark as moved out will appear here."
                         },

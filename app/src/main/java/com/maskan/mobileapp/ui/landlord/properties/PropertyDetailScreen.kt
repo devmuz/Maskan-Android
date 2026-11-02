@@ -1,5 +1,9 @@
 package com.maskan.mobileapp.ui.landlord.properties
 
+import com.maskan.mobileapp.data.repository.isBuildingLocked
+import com.maskan.mobileapp.ui.components.LockedPropertyBanner
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -51,9 +55,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBack: () -> Unit, onEdit: (String) -> Unit) {
+fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBack: () -> Unit, onEdit: (String) -> Unit, onUpgradeRequired: () -> Unit) {
     val colors = MaskanTheme.colors
     val properties by viewModel.properties.collectAsStateWithLifecycle()
+    val tenants by viewModel.tenants.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val landlord by viewModel.landlord.collectAsStateWithLifecycle()
     val property = properties.find { it.id == propertyId }
     val clipboard = LocalClipboardManager.current
@@ -65,10 +71,15 @@ fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBac
 
     if (property == null) {
         Box(modifier = Modifier.fillMaxSize().background(colors.background), contentAlignment = Alignment.Center) {
-            Text(text = "Property not found", style = MaskanType.body, color = colors.textSecondary)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "Property not found", style = MaskanType.bodyMedium, color = colors.textPrimary)
+                Text(text = "This property may have been removed.", style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 4.dp))
+            }
         }
         return
     }
+
+    val isLocked = isBuildingLocked(property.groupKey, property.landlordId, viewModel.landlordUid, landlord?.isPro == true, properties)
 
     Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
         Row(
@@ -77,13 +88,15 @@ fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBac
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
-            IconButton(onClick = { onEdit(property.id) }) { Icon(Icons.Filled.Edit, contentDescription = "Edit", tint = colors.textPrimary) }
+            IconButton(onClick = { if (isLocked) onUpgradeRequired() else onEdit(property.id) }) { Icon(Icons.Filled.Edit, contentDescription = "Edit", tint = colors.textPrimary) }
         }
 
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = MaskanDimens.screenHPadding),
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
+            if (isLocked) LockedPropertyBanner(onUpgrade = onUpgradeRequired)
+
             if (!property.photoUrl.isNullOrBlank()) {
                 PropertyPhoto(
                     url = property.photoUrl!!,
@@ -108,7 +121,7 @@ fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBac
                     .background(colors.primaryGradient, RoundedCornerShape(MaskanDimens.cornerRadius))
                     .padding(MaskanDimens.cardPadding),
             ) {
-                Text(text = "PROPERTY ID", style = MaskanType.overline, color = Color.White.copy(alpha = 0.8f))
+                Text(text = "Property ID", style = MaskanType.overline, color = Color.White.copy(alpha = 0.8f))
                 Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(text = property.propertyIdCode, style = MaskanType.sectionTitle, color = Color.White)
                     Box(
@@ -132,6 +145,39 @@ fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBac
                 property.electricityAccountNumber?.takeIf { it.isNotBlank() }?.let { DetailRow("Electricity account", it, verticalPadding = 8.dp) }
                 property.houseTaxNumber?.takeIf { it.isNotBlank() }?.let { DetailRow("House tax number", it, verticalPadding = 8.dp) }
                 property.waterTaxNumber?.takeIf { it.isNotBlank() }?.let { DetailRow("Water tax number", it, verticalPadding = 8.dp) }
+            }
+
+            tenants.firstOrNull { it.isActive && it.resolvedPropertyId == property.id }?.let { tenant ->
+                Column {
+                    Text(text = "TENANT", style = MaskanType.overline, color = colors.textSecondary, modifier = Modifier.padding(bottom = 8.dp))
+                    MaskanCard(modifier = Modifier.fillMaxWidth()) {
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = tenant.name, style = MaskanType.bodyMedium, color = colors.textPrimary)
+                                tenant.moveInDate?.let {
+                                    Text(
+                                        text = "Since ${java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.getDefault()).format(it)}",
+                                        style = MaskanType.secondary,
+                                        color = colors.textSecondary,
+                                        modifier = Modifier.padding(top = 2.dp),
+                                    )
+                                }
+                            }
+                            if (tenant.contact.isNotBlank()) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(colors.primaryGradient)
+                                        .clickable { com.maskan.mobileapp.data.util.launchPhoneDialer(context, tenant.contact) },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(Icons.Filled.Call, contentDescription = "Call", tint = Color.White, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Column(modifier = Modifier.padding(bottom = 24.dp)) {

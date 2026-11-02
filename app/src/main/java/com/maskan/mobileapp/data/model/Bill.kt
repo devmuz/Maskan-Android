@@ -80,7 +80,7 @@ enum class BillStatus(val raw: String, val label: String) {
     PAID("paid", "Paid"),
     OVERDUE("overdue", "Overdue"),
     /** Tenant submitted proof of payment; awaiting landlord Approve/Reject (07-landlord-bills.md). */
-    VERIFYING("verifying", "Verifying"),
+    VERIFYING("verifying", "Verifying…"),
 }
 
 enum class Frequency(val raw: String, val label: String) {

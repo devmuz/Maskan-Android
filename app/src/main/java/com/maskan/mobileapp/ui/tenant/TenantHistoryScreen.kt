@@ -50,7 +50,7 @@ fun TenantHistoryScreen(viewModel: TenantSessionViewModel, onBack: () -> Unit, o
             IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
         }
         Text(
-            text = "History",
+            text = "Payment History",
             style = MaskanType.screenTitle,
             color = colors.textPrimary,
             modifier = Modifier.padding(horizontal = MaskanDimens.screenHPadding, vertical = 8.dp),

@@ -35,6 +35,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maskan.mobileapp.data.model.IdentityDocumentType
+import com.maskan.mobileapp.data.repository.isBuildingLocked
 import com.maskan.mobileapp.ui.components.AppTextField
 import com.maskan.mobileapp.ui.components.GradientButton
 import com.maskan.mobileapp.ui.landlord.LandlordViewModel
@@ -48,11 +49,17 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditTenantScreen(viewModel: LandlordViewModel, tenantId: String, onDone: () -> Unit, onCancel: () -> Unit) {
+fun EditTenantScreen(viewModel: LandlordViewModel, tenantId: String, onDone: () -> Unit, onCancel: () -> Unit, onUpgradeRequired: () -> Unit) {
     val colors = MaskanTheme.colors
     val scope = rememberCoroutineScope()
     val tenants by viewModel.tenants.collectAsStateWithLifecycle()
     val tenant = tenants.find { it.id == tenantId }
+    val properties by viewModel.properties.collectAsStateWithLifecycle()
+    val landlord by viewModel.landlord.collectAsStateWithLifecycle()
+    // Locked on the free plan: details can't be updated, but the tenant can
+    // still be marked as moved out (mirrors iOS EditTenantView `locked`).
+    val isLocked = tenant?.let { t -> properties.find { it.id == t.resolvedPropertyId } }
+        ?.let { isBuildingLocked(it.groupKey, it.landlordId, viewModel.landlordUid, landlord?.isPro == true, properties) } == true
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
 
     var name by remember { mutableStateOf("") }
@@ -109,8 +116,8 @@ fun EditTenantScreen(viewModel: LandlordViewModel, tenantId: String, onDone: () 
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
             if (tenant.isActive) {
-                AppTextField(value = name, onValueChange = { name = it }, label = "Tenant name")
-                AppTextField(value = contact, onValueChange = { contact = it }, label = "Contact", keyboardType = KeyboardType.Phone)
+                AppTextField(value = name, onValueChange = { name = it }, label = "Tenant name", placeholder = "Full name")
+                AppTextField(value = contact, onValueChange = { contact = it }, label = "Contact", placeholder = "Phone number", keyboardType = KeyboardType.Phone)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -122,7 +129,7 @@ fun EditTenantScreen(viewModel: LandlordViewModel, tenantId: String, onDone: () 
                     Text(text = dateFormat.format(moveInDate), style = MaskanType.bodyMedium, color = colors.gradientStart)
                 }
 
-                OptionalTenantDetailsSection(
+                if (!isLocked) OptionalTenantDetailsSection(
                     identityDocumentType = identityDocumentType,
                     onIdentityDocumentTypeChange = { identityDocumentType = it },
                     identityDocumentNumber = identityDocumentNumber,
@@ -135,6 +142,14 @@ fun EditTenantScreen(viewModel: LandlordViewModel, tenantId: String, onDone: () 
                     onPermanentAddressChange = { permanentAddress = it },
                 )
 
+                if (isLocked) {
+                    Text(
+                        text = "This property is locked on the free plan — tenant details can't be updated. You can still mark the tenant as moved out.",
+                        style = MaskanType.secondary,
+                        color = colors.textSecondary,
+                    )
+                }
+
                 error?.let { Text(text = it, style = MaskanType.secondary, color = colors.danger) }
 
                 GradientButton(
@@ -142,7 +157,8 @@ fun EditTenantScreen(viewModel: LandlordViewModel, tenantId: String, onDone: () 
                     isLoading = isSaving,
                     loadingText = "Saving…",
                     enabled = name.isNotBlank() && contact.isNotBlank(),
-                    onClick = {
+                    onClick = save@{
+                        if (isLocked) { onUpgradeRequired(); return@save }
                         isSaving = true
                         error = null
                         scope.launch {
@@ -222,7 +238,7 @@ fun EditTenantScreen(viewModel: LandlordViewModel, tenantId: String, onDone: () 
         AlertDialog(
             onDismissRequest = { showMoveOutConfirm = false },
             title = { Text("Mark ${tenant.name} as moved out?") },
-            text = { Text("Login stops working immediately and the property becomes available for a new tenant.") },
+            text = { Text("Their login will stop working and ${tenant.propertyIdCode} will become available for a new tenant. Their record moves to Old Tenants.") },
             confirmButton = {
                 TextButton(onClick = {
                     showMoveOutConfirm = false
@@ -230,7 +246,7 @@ fun EditTenantScreen(viewModel: LandlordViewModel, tenantId: String, onDone: () 
                         viewModel.tenantRepository.markMovedOut(tenant, moveOutDate)
                         onDone()
                     }
-                }) { Text("Mark as Moved Out", color = colors.warning) }
+                }) { Text("Mark Moved Out", color = colors.warning) }
             },
             dismissButton = { TextButton(onClick = { showMoveOutConfirm = false }) { Text("Cancel") } },
         )

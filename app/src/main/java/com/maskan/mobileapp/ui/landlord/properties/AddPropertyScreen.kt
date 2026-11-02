@@ -147,7 +147,7 @@ fun AddPropertyScreen(
                     value = buildingName,
                     onValueChange = { buildingName = it },
                     label = if (isMultiUnit) "Building name" else "Property name",
-                    placeholder = "e.g. Willow Apartments",
+                    placeholder = if (isMultiUnit) "e.g. Willow Apartments" else "e.g. Rose Villa",
                 )
                 AppTextField(value = address, onValueChange = { address = it }, label = "Address", placeholder = "Street, area, city")
             }
@@ -162,11 +162,12 @@ fun AddPropertyScreen(
                         requireUnitName = isMultiUnit && flats.size > 1,
                         code = resolvedCode(flat, buildingName, address),
                         onRemove = if (isMultiUnit && flats.size > 1) ({ flats.removeAt(index) }) else null,
+                        checkCodeAvailable = { viewModel.propertyRepository.isCodeAvailable(it) },
                     )
                 }
                 if (isMultiUnit) {
                     Text(
-                        text = "+ Add another flat",
+                        text = "Add another flat",
                         style = MaskanType.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = colors.gradientStart,
                         modifier = Modifier.clickable { flats.add(FlatFormState()) },
@@ -198,6 +199,14 @@ fun AddPropertyScreen(
                             Text(text = "Add a photo of the building", style = MaskanType.secondary, color = colors.textSecondary)
                         }
                     }
+                }
+                if (photoUri != null) {
+                    Text(
+                        text = "Remove photo",
+                        style = MaskanType.secondary.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
+                        color = colors.danger,
+                        modifier = Modifier.clickable { photoUri = null },
+                    )
                 }
             }
 
@@ -250,6 +259,9 @@ fun AddPropertyScreen(
                                         if (bytes != null) {
                                             viewModel.propertyRepository.uploadPhoto(viewModel.landlordUid, createdIds, bytes)
                                         }
+                                    } catch (t: Throwable) {
+                                        if (t is kotlinx.coroutines.CancellationException) throw t
+                                        viewModel.reportPhotoUploadError(t.message ?: "Unknown error.")
                                     } finally {
                                         viewModel.clearUploadingPhoto(createdIds)
                                     }
@@ -290,6 +302,7 @@ private fun FlatEntryCard(
     requireUnitName: Boolean,
     code: String,
     onRemove: (() -> Unit)?,
+    checkCodeAvailable: suspend (String) -> Boolean,
 ) {
     val colors = MaskanTheme.colors
     Column(
@@ -327,8 +340,12 @@ private fun FlatEntryCard(
                 value = flat.manualCode ?: code,
                 onValueChange = { flat.manualCode = it.uppercase().filter { c -> c.isLetterOrDigit() } },
                 label = "",
+                placeholder = "e.g. ABCDE123",
                 modifier = Modifier.padding(top = 6.dp),
             )
+            if (flat.manualCode != null) {
+                CodeAvailabilityIndicator(code, checkCodeAvailable, modifier = Modifier.padding(top = 4.dp))
+            }
             if (flat.manualCode != null) {
                 Text(
                     text = "Reset to suggested",
@@ -338,5 +355,29 @@ private fun FlatEntryCard(
                 )
             }
         }
+    }
+}
+
+/**
+ * Live "Checking… / Available / Already in use" under a typed Property ID
+ * (iOS availabilityIndicator). Debounced; codes under 4 characters show nothing.
+ */
+@Composable
+internal fun CodeAvailabilityIndicator(code: String, check: suspend (String) -> Boolean, modifier: Modifier = Modifier) {
+    val colors = MaskanTheme.colors
+    var state by remember(code) { mutableStateOf<Boolean?>(null) }
+    var checking by remember(code) { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(code) {
+        if (code.length < 4) return@LaunchedEffect
+        checking = true
+        kotlinx.coroutines.delay(400)
+        state = check(code.uppercase())
+        checking = false
+    }
+    when {
+        code.length < 4 -> Unit
+        checking -> Text(text = "Checking…", style = MaskanType.secondary, color = colors.textSecondary, modifier = modifier)
+        state == true -> Text(text = "✓ Available", style = MaskanType.secondary, color = colors.success, modifier = modifier)
+        state == false -> Text(text = "✕ Already in use", style = MaskanType.secondary, color = colors.danger, modifier = modifier)
     }
 }

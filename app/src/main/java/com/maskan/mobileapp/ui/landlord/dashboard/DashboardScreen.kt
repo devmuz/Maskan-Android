@@ -243,7 +243,7 @@ fun DashboardScreen(
                     moreLabel = "more due soon",
                     fallbackCurrencyCode = fallbackCurrencyCode,
                     onBillClick = onBillClick,
-                    emptyMessage = "Nothing due in the next 7 days",
+                    emptyMessage = "Nothing due in the next 7 days.",
                 )
             }
         }

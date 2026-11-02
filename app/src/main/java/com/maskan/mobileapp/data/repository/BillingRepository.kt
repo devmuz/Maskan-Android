@@ -259,11 +259,16 @@ class BillingRepository(private val firestore: FirebaseFirestore) {
      * exists there yet — see 09-tenant-app.md). Caller manages its own
      * collection lifecycle (e.g. `collectAsStateWithLifecycle`).
      */
-    fun billsForPropertyFlow(propertyId: String) = callbackFlow {
+    /** [onError] receives the listener's error message, or null once a snapshot arrives. */
+    fun billsForPropertyFlow(propertyId: String, onError: (String?) -> Unit = {}) = callbackFlow {
         val registration = billsCollection
             .whereEqualTo("propertyId", propertyId)
             .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
+                if (error != null) {
+                    onError(error.localizedMessage ?: error.toString())
+                    return@addSnapshotListener
+                }
+                onError(null)
                 trySend(snapshot?.toObjects(Bill::class.java).orEmpty())
             }
         awaitClose { registration.remove() }
@@ -277,6 +282,22 @@ class BillingRepository(private val firestore: FirebaseFirestore) {
                 trySend(snapshot?.toObjects(Payment::class.java).orEmpty())
             }
         awaitClose { registration.remove() }
+    }
+
+    // MARK: - Edit / Delete payment
+
+    suspend fun updatePayment(payment: Payment, amount: Double, paidDate: Date, method: String) {
+        paymentsCollection.document(payment.id)
+            .update(mapOf("amount" to amount, "paidDate" to paidDate, "method" to method))
+            .await()
+    }
+
+    /** Deletes the payment record and reverts the associated bill to pending (as on iOS). */
+    suspend fun deletePayment(payment: Payment) {
+        val batch = firestore.batch()
+        batch.delete(paymentsCollection.document(payment.id))
+        batch.update(billsCollection.document(payment.billId), mapOf("status" to "pending", "paidAt" to FieldValue.delete()))
+        batch.commit().await()
     }
 
     /**

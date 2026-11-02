@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.landlord.bills
 
+import com.maskan.mobileapp.data.repository.isBuildingLocked
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -64,7 +65,15 @@ import java.util.Locale
 fun RecordPaymentScreen(viewModel: LandlordViewModel, fixedPropertyId: String? = null, onDone: () -> Unit, onCancel: () -> Unit) {
     val colors = MaskanTheme.colors
     val scope = rememberCoroutineScope()
-    val properties by viewModel.properties.collectAsStateWithLifecycle()
+    val allProperties by viewModel.properties.collectAsStateWithLifecycle()
+    val landlord by viewModel.landlord.collectAsStateWithLifecycle()
+    // From the dashboard, locked properties (over the free-plan limit) aren't
+    // offered — payments can't be recorded there (as on iOS). Tenant Detail
+    // already gates its fixed property before navigating here.
+    val properties = remember(allProperties, landlord?.isPro, fixedPropertyId) {
+        if (fixedPropertyId != null) allProperties
+        else allProperties.filter { !isBuildingLocked(it.groupKey, it.landlordId, viewModel.landlordUid, landlord?.isPro == true, allProperties) }
+    }
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
 
     var selectedPropertyId by remember { mutableStateOf(fixedPropertyId ?: properties.firstOrNull()?.id) }

@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.tenant
 
+import com.maskan.mobileapp.ui.landlord.settings.openPrivacyPolicy
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -90,7 +91,6 @@ fun TenantSettingsScreen(
 
     var notificationsEnabled by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     var showNotificationsBlockedDialog by remember { mutableStateOf(false) }
-    var showPrivacyDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -249,7 +249,7 @@ fun TenantSettingsScreen(
                     }
                     HorizontalDivider(color = colors.border, modifier = Modifier.padding(vertical = 10.dp))
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { showPrivacyDialog = true }.padding(vertical = 6.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { openPrivacyPolicy(context) }.padding(vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -283,8 +283,8 @@ fun TenantSettingsScreen(
     if (showNotificationsBlockedDialog) {
         AlertDialog(
             onDismissRequest = { showNotificationsBlockedDialog = false },
-            title = { Text("Notifications are off") },
-            text = { Text("Turn on notifications in system settings to receive alerts from Maskan.") },
+            title = { Text("Notifications Blocked") },
+            text = { Text("To change notification permissions, go to Settings > Maskan.") },
             confirmButton = {
                 TextButton(onClick = {
                     showNotificationsBlockedDialog = false
@@ -297,20 +297,12 @@ fun TenantSettingsScreen(
         )
     }
 
-    if (showPrivacyDialog) {
-        AlertDialog(
-            onDismissRequest = { showPrivacyDialog = false },
-            title = { Text("Privacy Policy") },
-            text = { Text("The Maskan privacy policy will open here once a hosted URL is published.") },
-            confirmButton = { TextButton(onClick = { showPrivacyDialog = false }) { Text("OK") } },
-        )
-    }
 
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("Log Out") },
-            text = { Text("Are you sure you want to log out?") },
+            title = { Text("Log Out?") },
+            text = { Text("You will be signed out of your account.") },
             confirmButton = {
                 TextButton(onClick = {
                     showLogoutDialog = false

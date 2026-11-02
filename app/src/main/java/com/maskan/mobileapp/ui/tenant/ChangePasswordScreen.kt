@@ -37,6 +37,7 @@ fun ChangePasswordScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, 
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
+    var didSucceed by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
     val isValid = newPassword.length >= 6 && newPassword == confirmPassword && newPassword != currentPassword && currentPassword.isNotEmpty()
@@ -50,9 +51,9 @@ fun ChangePasswordScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, 
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(MaskanDimens.itemSpacing)) {
-            AppTextField(value = currentPassword, onValueChange = { currentPassword = it; error = null }, label = "Current Password", isPassword = true)
-            AppTextField(value = newPassword, onValueChange = { newPassword = it; error = null }, label = "New Password", isPassword = true)
-            AppTextField(value = confirmPassword, onValueChange = { confirmPassword = it; error = null }, label = "Confirm New Password", isPassword = true)
+            AppTextField(value = currentPassword, onValueChange = { currentPassword = it; error = null }, label = "Current Password", placeholder = "Enter your current password", isPassword = true)
+            AppTextField(value = newPassword, onValueChange = { newPassword = it; error = null }, label = "New Password", placeholder = "At least 6 characters", isPassword = true)
+            AppTextField(value = confirmPassword, onValueChange = { confirmPassword = it; error = null }, label = "Confirm New Password", placeholder = "Re-enter new password", isPassword = true)
 
             error?.let { Text(text = it, style = MaskanType.secondary.copy(fontWeight = FontWeight.Medium), color = colors.danger) }
 
@@ -67,7 +68,7 @@ fun ChangePasswordScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, 
                     scope.launch {
                         try {
                             viewModel.changePassword(currentPassword, newPassword)
-                            onDone()
+                            didSucceed = true
                         } catch (t: Throwable) {
                             error = t.message ?: "Couldn't change your password."
                         } finally {
@@ -84,5 +85,14 @@ fun ChangePasswordScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, 
                 modifier = Modifier.padding(top = 8.dp).clickable(onClick = onCancel),
             )
         }
+    }
+
+    if (didSucceed) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = onDone,
+            title = { Text("Password Changed") },
+            text = { Text("Your password has been updated successfully.") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = onDone) { Text("OK") } },
+        )
     }
 }

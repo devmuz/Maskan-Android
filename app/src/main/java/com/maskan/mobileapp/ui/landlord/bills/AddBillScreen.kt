@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.landlord.bills
 
+import com.maskan.mobileapp.data.repository.isBuildingLocked
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -63,7 +64,13 @@ import java.util.Locale
 fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: () -> Unit) {
     val colors = MaskanTheme.colors
     val scope = rememberCoroutineScope()
-    val properties by viewModel.properties.collectAsStateWithLifecycle()
+    val allProperties by viewModel.properties.collectAsStateWithLifecycle()
+    val landlord by viewModel.landlord.collectAsStateWithLifecycle()
+    // Properties over the free-plan limit are excluded — bills can only be
+    // added to properties that aren't locked (as on iOS).
+    val properties = remember(allProperties, landlord?.isPro) {
+        allProperties.filter { !isBuildingLocked(it.groupKey, it.landlordId, viewModel.landlordUid, landlord?.isPro == true, allProperties) }
+    }
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
 
     var selectedPropertyId by remember { mutableStateOf(properties.firstOrNull()?.id) }
@@ -121,7 +128,7 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
                             )
                             onDone()
                         } catch (t: Throwable) {
-                            error = t.message ?: "Couldn't save this bill."
+                            error = t.message ?: "Couldn't save bill"
                         } finally {
                             isSaving = false
                         }
@@ -137,7 +144,14 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
             Column {
                 Text(text = "PROPERTY", style = MaskanType.overline, color = colors.textTertiary)
                 val selectedProperty = properties.find { it.id == selectedPropertyId }
-                Box(modifier = Modifier.padding(top = 8.dp)) {
+                if (properties.isEmpty()) {
+                    Text(
+                        text = "No properties found. Add a property first.",
+                        style = MaskanType.body,
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                } else Box(modifier = Modifier.padding(top = 8.dp)) {
                     FieldRow(
                         label = "Property",
                         value = selectedProperty?.let { if (it.unit.isNotBlank()) "${it.displayBuildingName} · ${it.unit}" else it.displayBuildingName } ?: "Select a property",
@@ -158,7 +172,7 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
                 Text(text = "BILL DETAILS", style = MaskanType.overline, color = colors.textTertiary)
                 Box {
                     FieldRow(
-                        label = "Type",
+                        label = "Bill Type",
                         value = type.label,
                         icon = billTypeIcon(type),
                         onClick = { typeMenuExpanded = true },
@@ -222,7 +236,7 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
             }
 
             Column {
-                Text(text = "NOTES (OPTIONAL)", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
+                Text(text = "Notes (Optional)", style = MaskanType.fieldLabel, color = colors.textSecondary, modifier = Modifier.padding(bottom = 8.dp))
                 AppTextField(value = notes, onValueChange = { notes = it }, label = "", placeholder = "e.g. Paid govt portal, receipt #...", singleLine = false, minLines = 3)
             }
 

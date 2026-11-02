@@ -1,5 +1,8 @@
 package com.maskan.mobileapp.ui.landlord.tenants
 
+import com.maskan.mobileapp.ui.landlord.bills.PaymentActionDialogs
+import com.maskan.mobileapp.ui.landlord.bills.PaymentActionMenu
+import com.maskan.mobileapp.ui.landlord.bills.rememberPaymentActionsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +23,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
+import com.maskan.mobileapp.data.repository.isBuildingLocked
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Description
@@ -80,6 +85,7 @@ fun TenantDetailScreen(
     onViewAllPayments: (String) -> Unit,
     onRecordPayment: (String) -> Unit,
     onDocumentsClick: (String) -> Unit,
+    onUpgradeRequired: () -> Unit,
 ) {
     val colors = MaskanTheme.colors
     val context = LocalContext.current
@@ -91,6 +97,7 @@ fun TenantDetailScreen(
     val archivedProperties by viewModel.archivedProperties.collectAsStateWithLifecycle()
     val bills by viewModel.bills.collectAsStateWithLifecycle()
     val payments by viewModel.payments.collectAsStateWithLifecycle()
+    val landlord by viewModel.landlord.collectAsStateWithLifecycle()
 
     val tenant = tenants.find { it.id == tenantId }
     // Include deleted properties so an old tenant of a since-deleted property still opens (as on iOS).
@@ -100,7 +107,7 @@ fun TenantDetailScreen(
 
     var showDueDayMenu by remember { mutableStateOf(false) }
     var showAdjustAmount by remember { mutableStateOf(false) }
-    var reminderSentMessage by remember { mutableStateOf<String?>(null) }
+    var showReminderSent by remember { mutableStateOf(false) }
     var showCallChooser by remember { mutableStateOf(false) }
     var showResetPasswordConfirm by remember { mutableStateOf(false) }
     var newTemporaryPassword by remember { mutableStateOf<String?>(null) }
@@ -108,7 +115,10 @@ fun TenantDetailScreen(
 
     if (tenant == null || property == null) {
         Box(modifier = Modifier.fillMaxSize().background(colors.background), contentAlignment = Alignment.Center) {
-            Text(text = "Tenant not found", style = MaskanType.body, color = colors.textSecondary)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "Tenant not found", style = MaskanType.bodyMedium, color = colors.textPrimary)
+                Text(text = "This tenant may have been removed.", style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 4.dp))
+            }
         }
         return
     }
@@ -120,6 +130,10 @@ fun TenantDetailScreen(
     val currencyCode = property.currency ?: "USD"
     val propertyPayments = payments.filter { it.propertyId == property.id }.sortedByDescending { it.paidDate }
     val billsById = remember(bills) { bills.associateBy { it.id } }
+    // Over the free-plan limit: viewable, but recording/adjusting/re-dating needs Pro (as on iOS).
+    val isLocked = isBuildingLocked(property.groupKey, property.landlordId, viewModel.landlordUid, landlord?.isPro == true, properties)
+    val recordPayment = { if (isLocked) onUpgradeRequired() else onRecordPayment(property.id) }
+    val paymentActions = rememberPaymentActionsState()
 
     Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
         Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -225,14 +239,18 @@ fun TenantDetailScreen(
 
             if (tenant.isActive) {
                 MaskanCard(modifier = Modifier.fillMaxWidth()) {
+                    Text(text = "RENT", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
                     DetailRow("Monthly rent", AmountFormatter.format(property.monthlyRent, currencyCode), verticalPadding = 0.dp)
-                    Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable { showDueDayMenu = true }, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable { if (isLocked) onUpgradeRequired() else showDueDayMenu = true }, horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(text = "Payment due day", style = MaskanType.body, color = colors.textSecondary)
                         Box {
-                            Text(text = tenant.rentDueDay?.toString() ?: "Not set", style = MaskanType.bodyMedium, color = colors.gradientStart)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = tenant.rentDueDay?.let { "Day $it" } ?: "Set day", style = MaskanType.bodyMedium, color = if (isLocked) colors.textSecondary else colors.gradientStart)
+                                if (isLocked) Icon(Icons.Filled.Lock, contentDescription = "Locked", tint = colors.textSecondary, modifier = Modifier.padding(start = 4.dp).size(14.dp))
+                            }
                             DropdownMenu(expanded = showDueDayMenu, onDismissRequest = { showDueDayMenu = false }) {
                                 (1..30).forEach { day ->
-                                    DropdownMenuItem(text = { Text(day.toString()) }, onClick = {
+                                    DropdownMenuItem(text = { Text("Day $day of the month") }, onClick = {
                                         showDueDayMenu = false
                                         scope.launch { viewModel.tenantRepository.setRentDueDay(tenant.id, day) }
                                     })
@@ -263,17 +281,17 @@ fun TenantDetailScreen(
                             brush = androidx.compose.ui.graphics.SolidColor(Color.White),
                             contentColor = colors.gradientStart,
                             leadingIcon = { Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = colors.gradientStart, modifier = Modifier.size(18.dp)) },
-                            onClick = { onRecordPayment(property.id) },
+                            onClick = recordPayment,
                             modifier = Modifier.padding(top = 16.dp),
                         )
                     } else {
-                        tenant.rentDueDay?.let {
-                            Text(text = "Due on day $it", style = MaskanType.secondary, color = Color.White.copy(alpha = 0.75f), modifier = Modifier.padding(top = 4.dp))
+                        (tenant.rentDueDay?.let { "Due on day $it of the month" } ?: "Pending this month").let {
+                            Text(text = it, style = MaskanType.secondary, color = Color.White.copy(alpha = 0.75f), modifier = Modifier.padding(top = 4.dp))
                         }
                         Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             GradientButton(
                                 text = "Record Payment",
-                                onClick = { onRecordPayment(property.id) },
+                                onClick = recordPayment,
                                 modifier = Modifier.weight(1f),
                             )
                             GradientButton(
@@ -283,9 +301,9 @@ fun TenantDetailScreen(
                                 modifier = Modifier.weight(1f),
                                 onClick = {
                                     scope.launch {
-                                        val message = "Rent of ${AmountFormatter.format(currentAmount, currencyCode)} for ${PeriodFormatter.displayLabel(currentPeriod)} is pending (due day ${tenant.rentDueDay ?: "—"}). Please arrange the payment."
+                                        val message = "Rent of ${AmountFormatter.format(currentAmount, currencyCode)} for ${PeriodFormatter.displayLabel(currentPeriod)} is pending${tenant.rentDueDay?.let { " (due day $it)" } ?: ""}. Please arrange the payment."
                                         viewModel.billingRepository.sendReminder(tenant.id, message)
-                                        reminderSentMessage = "Reminder sent"
+                                        showReminderSent = true
                                     }
                                 },
                             )
@@ -294,11 +312,8 @@ fun TenantDetailScreen(
                             text = "Adjust pending amount",
                             style = MaskanType.secondary,
                             color = Color.White.copy(alpha = 0.85f),
-                            modifier = Modifier.padding(top = 12.dp).clickable { showAdjustAmount = true },
+                            modifier = Modifier.padding(top = 12.dp).clickable { if (isLocked) onUpgradeRequired() else showAdjustAmount = true },
                         )
-                        reminderSentMessage?.let {
-                            Text(text = it, style = MaskanType.secondary, color = Color.White, modifier = Modifier.padding(top = 8.dp))
-                        }
                     }
                 }
             } else {
@@ -313,7 +328,7 @@ fun TenantDetailScreen(
 
             Column {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "Recent Payments", style = MaskanType.cardTitle, color = colors.textPrimary, modifier = Modifier.padding(bottom = 12.dp))
+                    Text(text = "RECENT PAYMENTS", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 12.dp))
                     if (propertyPayments.size > 5) {
                         Text(
                             text = "View All",
@@ -329,7 +344,12 @@ fun TenantDetailScreen(
                     MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
                         val recentPayments = propertyPayments.take(5)
                         recentPayments.forEachIndexed { index, payment ->
-                            PaymentHistoryRow(payment, billsById[payment.billId]?.type, currencyCode, dateFormat)
+                            val type = billsById[payment.billId]?.type
+                            PaymentHistoryRow(
+                                payment, type, currencyCode, dateFormat,
+                                onEdit = { paymentActions.editing = payment },
+                                onDelete = { paymentActions.deleting = payment to type },
+                            )
                             if (index != recentPayments.lastIndex) {
                                 androidx.compose.material3.HorizontalDivider(color = colors.border)
                             }
@@ -364,18 +384,23 @@ fun TenantDetailScreen(
         }
     }
 
+    PaymentActionDialogs(paymentActions, viewModel, currencyCode)
+
     if (showAdjustAmount) {
         var amountText by remember { mutableStateOf(currentAmount.toString()) }
         AlertDialog(
             onDismissRequest = { showAdjustAmount = false },
-            title = { Text("Adjust pending amount") },
+            title = { Text("Pending amount") },
             text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Set this month's pending amount (e.g. rent plus carried-over dues).")
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
                     label = { Text("Amount") },
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -395,8 +420,8 @@ fun TenantDetailScreen(
     if (showResetPasswordConfirm) {
         AlertDialog(
             onDismissRequest = { showResetPasswordConfirm = false },
-            title = { Text("Reset login password?") },
-            text = { Text("${tenant.name}'s current password will stop working immediately. A new one will be generated and shown once — you'll need to share it with them yourself.") },
+            title = { Text("Reset Login Password?") },
+            text = { Text("A new temporary password will be generated. The current password will stop working immediately.") },
             confirmButton = {
                 TextButton(onClick = {
                     showResetPasswordConfirm = false
@@ -417,20 +442,27 @@ fun TenantDetailScreen(
     newTemporaryPassword?.let { password ->
         AlertDialog(
             onDismissRequest = { newTemporaryPassword = null },
-            title = { Text("New password") },
+            title = { Text("Password Reset") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "Share this with ${tenant.name}. It's shown only once — it can't be viewed again after you close this.",
+                        text = "Share these updated credentials with ${tenant.name}.",
                         style = MaskanType.body,
                         color = colors.textSecondary,
                     )
-                    Column(
-                        modifier = Modifier.fillMaxWidth().background(colors.fieldBackground, RoundedCornerShape(MaskanDimens.cornerRadius)).padding(16.dp),
-                    ) {
-                        Text(text = "Temporary Password", style = MaskanType.fieldLabel, color = colors.textSecondary)
-                        Text(text = password, style = MaskanType.sectionTitle, color = colors.textPrimary, modifier = Modifier.padding(top = 4.dp))
+                    listOf("Property ID" to tenant.propertyIdCode, "New Password" to password).forEach { (label, value) ->
+                        Column(
+                            modifier = Modifier.fillMaxWidth().background(colors.fieldBackground, RoundedCornerShape(MaskanDimens.cornerRadius)).padding(16.dp),
+                        ) {
+                            Text(text = label, style = MaskanType.fieldLabel, color = colors.textSecondary)
+                            Text(text = value, style = MaskanType.sectionTitle, color = colors.textPrimary, modifier = Modifier.padding(top = 4.dp))
+                        }
                     }
+                    Text(
+                        text = "This is the only time the new password is shown. The previous password stopped working immediately.",
+                        style = MaskanType.secondary,
+                        color = colors.textSecondary,
+                    )
                 }
             },
             confirmButton = {
@@ -445,9 +477,18 @@ fun TenantDetailScreen(
     resetError?.let { message ->
         AlertDialog(
             onDismissRequest = { resetError = null },
-            title = { Text("Couldn't reset password") },
+            title = { Text("Something went wrong") },
             text = { Text(message) },
             confirmButton = { TextButton(onClick = { resetError = null }) { Text("OK") } },
+        )
+    }
+
+    if (showReminderSent) {
+        AlertDialog(
+            onDismissRequest = { showReminderSent = false },
+            title = { Text("Reminder sent") },
+            text = { Text("The tenant will see it in their app's notifications.") },
+            confirmButton = { TextButton(onClick = { showReminderSent = false }) { Text("OK") } },
         )
     }
 
@@ -468,7 +509,14 @@ private fun hasExtraDetails(tenant: com.maskan.mobileapp.data.model.Tenant): Boo
 
 
 @Composable
-fun PaymentHistoryRow(payment: Payment, billType: com.maskan.mobileapp.data.model.BillType?, currencyCode: String, dateFormat: SimpleDateFormat) {
+fun PaymentHistoryRow(
+    payment: Payment,
+    billType: com.maskan.mobileapp.data.model.BillType?,
+    currencyCode: String,
+    dateFormat: SimpleDateFormat,
+    onEdit: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
+) {
     val colors = MaskanTheme.colors
     Row(
         modifier = Modifier.fillMaxWidth().padding(MaskanDimens.cardPadding),
@@ -495,6 +543,9 @@ fun PaymentHistoryRow(payment: Payment, billType: com.maskan.mobileapp.data.mode
         Column(modifier = Modifier.padding(start = 12.dp), horizontalAlignment = Alignment.End) {
             Text(text = AmountFormatter.format(payment.amount, currencyCode), style = MaskanType.bodyMedium, color = colors.textPrimary)
             Text(text = payment.paidDate?.let { dateFormat.format(it) } ?: "", style = MaskanType.secondary, color = colors.textSecondary)
+        }
+        if (onEdit != null && onDelete != null) {
+            PaymentActionMenu(onEdit = onEdit, onDelete = onDelete)
         }
     }
 }

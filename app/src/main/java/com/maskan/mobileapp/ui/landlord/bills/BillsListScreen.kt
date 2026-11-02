@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FilterAlt
@@ -127,6 +128,11 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
                             }
                         }
                         DropdownMenu(expanded = showTypeMenu, onDismissRequest = { showTypeMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("All Types") },
+                                leadingIcon = { if (typeFilter == null) Icon(Icons.Filled.Check, contentDescription = null) },
+                                onClick = { typeFilter = null; showTypeMenu = false },
+                            )
                             BillType.entries.forEach { billType ->
                                 DropdownMenuItem(
                                     text = { Text(billType.label) },
@@ -155,8 +161,11 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
                 item {
                     EmptyState(
                         icon = Icons.Filled.Description,
-                        title = if (filter == BillFilter.ALL) "No bills yet" else "No ${filter.label.lowercase()} bills",
-                        message = if (filter == BillFilter.ALL) {
+                        title = typeFilter?.let { "No ${it.label.lowercase()} bills" }
+                            ?: if (filter == BillFilter.ALL) "No bills yet" else "No ${filter.label.lowercase()} bills",
+                        message = if (typeFilter != null) {
+                            "No ${typeFilter!!.label.lowercase()} bills match the current filter."
+                        } else if (filter == BillFilter.ALL) {
                             "Tap + to add electricity, water tax, house tax, and other bills."
                         } else {
                             "Bills with ${filter.label.lowercase()} status will appear here."

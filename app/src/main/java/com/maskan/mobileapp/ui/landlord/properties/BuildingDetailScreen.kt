@@ -54,6 +54,7 @@ import com.maskan.mobileapp.data.util.AmountFormatter
 import com.maskan.mobileapp.data.util.PropertyIdCodeGenerator
 import com.maskan.mobileapp.ui.components.AppTextField
 import com.maskan.mobileapp.ui.components.BillExpenseRow
+import com.maskan.mobileapp.ui.components.LockedPropertyBanner
 import com.maskan.mobileapp.ui.components.GradientButton
 import com.maskan.mobileapp.ui.components.MaskanCard
 import com.maskan.mobileapp.ui.components.StatusBadge
@@ -83,6 +84,7 @@ fun BuildingDetailScreen(
     onUpgradeRequired: () -> Unit,
     onDocumentsClick: (String) -> Unit,
     onBillClick: (String) -> Unit,
+    onViewAllExpenses: (String) -> Unit,
 ) {
     val colors = MaskanTheme.colors
     val properties by viewModel.properties.collectAsStateWithLifecycle()
@@ -181,31 +183,14 @@ fun BuildingDetailScreen(
                 }
             }
 
-            if (isLocked) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(colors.warning.copy(alpha = 0.12f), RoundedCornerShape(MaskanDimens.cornerRadius))
-                        .clickable(onClick = onUpgradeRequired)
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Filled.Lock, contentDescription = null, tint = colors.warning, modifier = Modifier.size(18.dp))
-                    Text(
-                        text = "Locked on the free plan — you can view this property and remove it or its tenant, but editing needs Pro.",
-                        style = MaskanType.secondary,
-                        color = colors.textPrimary,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
-            }
+            if (isLocked) LockedPropertyBanner(onUpgrade = onUpgradeRequired)
 
             Column {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "UNITS", style = MaskanType.overline, color = colors.textTertiary)
                     if (group.propertyType?.supportsMultipleUnits == true) {
                         Text(
-                            text = "+ Add Flat",
+                            text = "Add Flat",
                             style = MaskanType.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                             color = colors.gradientStart,
                             modifier = Modifier.clickable { requestAddFlat() },
@@ -270,9 +255,20 @@ fun BuildingDetailScreen(
 
             if (expenseBills.isNotEmpty()) {
                 Column {
-                    Text(text = "PROPERTY EXPENSES", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
+                    Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "PROPERTY EXPENSES", style = MaskanType.overline, color = colors.textTertiary)
+                        if (expenseBills.size > 5) {
+                            Text(
+                                text = "View All",
+                                style = MaskanType.secondary.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                                color = colors.gradientStart,
+                                modifier = Modifier.clickable { onViewAllExpenses(representative.id) },
+                            )
+                        }
+                    }
                     MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
-                        expenseBills.forEachIndexed { index, bill ->
+                        val previewBills = expenseBills.take(5)
+                        previewBills.forEachIndexed { index, bill ->
                             val isPaid = bill.status.raw == "paid"
                             BillExpenseRow(
                                 title = bill.type.label,
@@ -284,7 +280,7 @@ fun BuildingDetailScreen(
                                 icon = billTypeIcon(bill.type),
                                 onClick = { onBillClick(bill.id) },
                             )
-                            if (index != expenseBills.lastIndex) {
+                            if (index != previewBills.lastIndex) {
                                 androidx.compose.material3.HorizontalDivider(color = colors.border)
                             }
                         }
@@ -309,12 +305,12 @@ fun BuildingDetailScreen(
                 if (!isOwner) {
                     MaskanCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                         Text(text = "Owner", style = MaskanType.secondary, color = colors.textSecondary)
-                        Text(text = ownerEmail ?: "…", style = MaskanType.bodyMedium, color = colors.textPrimary, modifier = Modifier.padding(top = 2.dp))
+                        Text(text = ownerEmail ?: "Loading…", style = MaskanType.bodyMedium, color = colors.textPrimary, modifier = Modifier.padding(top = 2.dp))
                     }
                 }
 
                 if (coOwnerUids.isEmpty()) {
-                    Text(text = "No co-owners yet.", style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 8.dp))
+                    Text(text = if (isOwner) "No co-owners yet. Tap Add to share full access." else "No other co-owners on this building.", style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 8.dp))
                 } else {
                     Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         coOwnerUids.forEach { uid ->
@@ -337,9 +333,15 @@ fun BuildingDetailScreen(
                         AppTextField(
                             value = addEmail,
                             onValueChange = { addEmail = it; actionError = null },
-                            label = "Add co-owner by email",
-                            placeholder = "landlord@example.com",
+                            label = "Add Co-Owner",
+                            placeholder = "Email address",
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
+                        )
+                        Text(
+                            text = "Enter the email address of their Maskan account. They'll get access to all units.",
+                            style = MaskanType.secondary,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(top = 4.dp),
                         )
                         Text(
                             text = "${coOwnerUids.size}/$coOwnerLimit co-owners" + if (!isPro) " (Free plan)" else "",
@@ -423,8 +425,8 @@ fun BuildingDetailScreen(
     uidPendingRemoval?.let { uid ->
         AlertDialog(
             onDismissRequest = { uidPendingRemoval = null },
-            title = { Text("Remove this co-owner?") },
-            text = { Text("${coOwnerEmails[uid] ?: uid} will lose management access to this building.") },
+            title = { Text("Remove Co-Owner?") },
+            text = { Text("Remove ${coOwnerEmails[uid] ?: "this person"} as a co-owner? They will lose access to all units in this building.") },
             confirmButton = {
                 TextButton(onClick = {
                     uidPendingRemoval = null
@@ -445,7 +447,7 @@ fun BuildingDetailScreen(
         AlertDialog(
             onDismissRequest = { showLeaveConfirm = false },
             title = { Text("Leave this building?") },
-            text = { Text("You'll lose management access to every flat in this building.") },
+            text = { Text("You'll lose access to ${representative.displayBuildingName} and all its tenants and bills.") },
             confirmButton = {
                 TextButton(onClick = {
                     showLeaveConfirm = false
@@ -466,8 +468,8 @@ fun BuildingDetailScreen(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete this property?") },
-            text = { Text("All ${group.totalCount} unit(s) and their Property IDs will be permanently removed. Bills, payments, and tenant history are kept.") },
+            title = { Text("Delete this building?") },
+            text = { Text("All ${group.totalCount} unit(s) and their Property IDs will be permanently removed.") },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false
@@ -518,15 +520,22 @@ private fun AddFlatForm(
 
     MaskanCard(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
         Text(text = "ADD FLAT", style = MaskanType.overline, color = colors.textTertiary)
+        Text(
+            text = "Adds a new unit to $buildingName. It gets its own permanent Property ID for tenant login.",
+            style = MaskanType.secondary,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(top = 6.dp),
+        )
         Column(modifier = Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            AppTextField(value = unitName, onValueChange = { unitName = it }, label = "Unit name", placeholder = "e.g. Flat 3")
-            AppTextField(value = monthlyRent, onValueChange = { monthlyRent = it }, label = "Monthly rent", placeholder = "0", keyboardType = KeyboardType.Number)
+            AppTextField(value = unitName, onValueChange = { unitName = it }, label = "Unit name", placeholder = "e.g. Flat 3C")
+            AppTextField(value = monthlyRent, onValueChange = { monthlyRent = it }, label = "Monthly rent", placeholder = "e.g. 2500", keyboardType = KeyboardType.Number)
             AppTextField(
                 value = code,
                 onValueChange = { manualCode = it.uppercase().filter { c -> c.isLetterOrDigit() } },
-                label = "Property ID",
-                placeholder = "AUTO",
+                label = "Property ID (tenant login code)",
+                placeholder = "e.g. ABCDE123",
             )
+            if (manualCode != null) CodeAvailabilityIndicator(code, checkCodeAvailable)
             if (manualCode != null) {
                 Text(
                     text = "Reset to suggested",
@@ -538,8 +547,9 @@ private fun AddFlatForm(
             error?.let { Text(text = it, style = MaskanType.secondary, color = colors.danger) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 GradientButton(
-                    text = "Save",
+                    text = "Add Flat",
                     isLoading = isSaving,
+                    loadingText = "Saving…",
                     enabled = isValid,
                     modifier = Modifier.weight(1f),
                     onClick = {

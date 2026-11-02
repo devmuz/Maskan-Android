@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.tenant
 
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.maskan.mobileapp.ui.components.GradientButton
 import com.maskan.mobileapp.data.model.PaymentMethods
 import com.maskan.mobileapp.data.util.toDate
 import com.maskan.mobileapp.data.util.toLocalDate
@@ -86,38 +88,19 @@ fun SubmitPaymentVerificationScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(text = "Cancel", style = MaskanType.body, color = colors.gradientStart, modifier = Modifier.clickable(onClick = onCancel))
-            Text(text = "I've Paid This Bill", style = MaskanType.cardTitle, color = colors.textPrimary)
-            Text(
-                text = if (isSaving) "Saving…" else "Submit",
-                style = MaskanType.body.copy(fontWeight = FontWeight.SemiBold),
-                color = if (isValid && !isSaving) colors.gradientStart else colors.textTertiary,
-                modifier = Modifier.clickable(enabled = isValid && !isSaving) {
-                    isSaving = true
-                    error = null
-                    scope.launch {
-                        try {
-                            viewModel.submitPaymentForVerification(
-                                bill = bill,
-                                amount = amount.toDoubleOrNull() ?: 0.0,
-                                paidDate = paymentDate.toDate(),
-                                method = method,
-                                notes = notes.ifBlank { null },
-                            )
-                            onDone()
-                        } catch (t: Throwable) {
-                            error = t.message ?: "Couldn't submit this payment."
-                        } finally {
-                            isSaving = false
-                        }
-                    }
-                },
-            )
+            Text(text = "Submit Payment", style = MaskanType.cardTitle, color = colors.textPrimary)
+            Box(modifier = Modifier.size(width = 56.dp, height = 1.dp))
         }
 
         Column(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = MaskanDimens.screenHPadding),
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
+            Text(
+                text = "Record that you've paid this bill. Your landlord will verify and approve the payment.",
+                style = MaskanType.secondary,
+                color = colors.textSecondary,
+            )
             AppTextField(
                 value = amount,
                 onValueChange = { amount = it.filter { c -> c.isDigit() || c == '.' } },
@@ -157,9 +140,35 @@ fun SubmitPaymentVerificationScreen(
                 }
             }
 
-            AppTextField(value = notes, onValueChange = { notes = it }, label = "Notes (optional)", placeholder = "e.g. transaction ID", singleLine = false, minLines = 2)
+            AppTextField(value = notes, onValueChange = { notes = it }, label = "Notes (Optional)", placeholder = "Transaction ID, reference number, etc.", singleLine = false, minLines = 2)
 
             error?.let { Text(text = it, style = MaskanType.secondary, color = colors.danger) }
+            GradientButton(
+                text = "Submit for Verification",
+                isLoading = isSaving,
+                loadingText = "Submitting…",
+                enabled = isValid,
+                onClick = {
+                    isSaving = true
+                    error = null
+                    scope.launch {
+                        try {
+                            viewModel.submitPaymentForVerification(
+                                bill = bill,
+                                amount = amount.toDoubleOrNull() ?: 0.0,
+                                paidDate = paymentDate.toDate(),
+                                method = method,
+                                notes = notes.ifBlank { null },
+                            )
+                            onDone()
+                        } catch (t: Throwable) {
+                            error = t.message ?: "Couldn't submit this payment."
+                        } finally {
+                            isSaving = false
+                        }
+                    }
+                },
+            )
             Box(modifier = Modifier.padding(bottom = 24.dp))
         }
     }

@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.landlord
 
+import com.maskan.mobileapp.data.repository.isBuildingLocked
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -77,6 +78,7 @@ import com.maskan.mobileapp.ui.landlord.properties.EditPropertyScreen
 import com.maskan.mobileapp.ui.landlord.properties.PropertiesScreen
 import com.maskan.mobileapp.ui.landlord.properties.PropertyDetailScreen
 import com.maskan.mobileapp.ui.landlord.properties.PropertyDocumentsScreen
+import com.maskan.mobileapp.ui.landlord.properties.PropertyExpensesScreen
 import com.maskan.mobileapp.ui.landlord.requests.LandlordRequestDetailScreen
 import com.maskan.mobileapp.ui.landlord.requests.LandlordRequestsScreen
 import com.maskan.mobileapp.ui.landlord.settings.CurrencyPickerScreen
@@ -230,6 +232,7 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     propertyId = entry.arguments?.getString("propertyId").orEmpty(),
                     onBack = { innerNavController.popBackStack() },
                     onEdit = { innerNavController.navigate("edit_property/$it") },
+                    onUpgradeRequired = { innerNavController.navigate("paywall") },
                 )
             }
             composable("archived_property_detail/{propertyId}", arguments = listOf(navArgument("propertyId") { type = NavType.StringType })) { entry ->
@@ -251,12 +254,29 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     onUpgradeRequired = { innerNavController.navigate("paywall") },
                     onDocumentsClick = { innerNavController.navigate("property_documents/$it") },
                     onBillClick = { innerNavController.navigate("bill_detail/$it") },
+                    onViewAllExpenses = { innerNavController.navigate("property_expenses/$it") },
+                )
+            }
+            composable("property_expenses/{propertyId}", arguments = listOf(navArgument("propertyId") { type = NavType.StringType })) { entry ->
+                PropertyExpensesScreen(
+                    viewModel = viewModel,
+                    propertyId = entry.arguments?.getString("propertyId").orEmpty(),
+                    onBack = { innerNavController.popBackStack() },
+                    onBillClick = { innerNavController.navigate("bill_detail/$it") },
                 )
             }
             composable("property_documents/{propertyId}", arguments = listOf(navArgument("propertyId") { type = NavType.StringType })) { entry ->
+                val propertyId = entry.arguments?.getString("propertyId").orEmpty()
+                val properties by viewModel.properties.collectAsStateWithLifecycle()
+                val landlord by viewModel.landlord.collectAsStateWithLifecycle()
+                val locked = properties.find { it.id == propertyId }?.let {
+                    isBuildingLocked(it.groupKey, it.landlordId, viewModel.landlordUid, landlord?.isPro == true, properties)
+                } == true
                 PropertyDocumentsScreen(
-                    propertyId = entry.arguments?.getString("propertyId").orEmpty(),
+                    propertyId = propertyId,
                     onBack = { innerNavController.popBackStack() },
+                    locked = locked,
+                    onUpgradeRequired = { innerNavController.navigate("paywall") },
                 )
             }
             composable("add_property") {
@@ -292,6 +312,7 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     onViewAllPayments = { innerNavController.navigate("tenant_payment_history/$it") },
                     onRecordPayment = { innerNavController.navigate("record_payment/$it") },
                     onDocumentsClick = { innerNavController.navigate("tenant_documents/$it") },
+                    onUpgradeRequired = { innerNavController.navigate("paywall") },
                 )
             }
             composable("tenant_documents/{tenantId}", arguments = listOf(navArgument("tenantId") { type = NavType.StringType })) { entry ->
@@ -319,6 +340,7 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     viewModel = viewModel,
                     onDone = { innerNavController.popBackStack() },
                     onCancel = { innerNavController.popBackStack() },
+                    onUpgradeRequired = { innerNavController.navigate("paywall") },
                 )
             }
             composable("edit_tenant/{tenantId}", arguments = listOf(navArgument("tenantId") { type = NavType.StringType })) { entry ->
@@ -327,6 +349,7 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     tenantId = entry.arguments?.getString("tenantId").orEmpty(),
                     onDone = { innerNavController.popBackStack() },
                     onCancel = { innerNavController.popBackStack() },
+                    onUpgradeRequired = { innerNavController.navigate("paywall") },
                 )
             }
 

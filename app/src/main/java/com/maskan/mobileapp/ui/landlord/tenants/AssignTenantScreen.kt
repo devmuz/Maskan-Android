@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import com.maskan.mobileapp.data.model.IdentityDocumentType
+import com.maskan.mobileapp.data.repository.isBuildingLocked
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -61,11 +62,19 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AssignTenantScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: () -> Unit) {
+fun AssignTenantScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: () -> Unit, onUpgradeRequired: () -> Unit) {
     val colors = MaskanTheme.colors
     val scope = rememberCoroutineScope()
     val properties by viewModel.properties.collectAsStateWithLifecycle()
-    val vacantProperties = remember(properties) { properties.filter { !it.occupied } }
+    val landlord by viewModel.landlord.collectAsStateWithLifecycle()
+    val isPro = landlord?.isPro == true
+    // Vacant properties over the free-plan limit are excluded — a new tenant
+    // can only be assigned to a property that isn't locked (as on iOS).
+    val allVacantProperties = remember(properties) { properties.filter { !it.occupied } }
+    val vacantProperties = remember(allVacantProperties, properties, isPro) {
+        allVacantProperties.filter { !isBuildingLocked(it.groupKey, it.landlordId, viewModel.landlordUid, isPro, properties) }
+    }
+    val hasLockedVacantProperties = vacantProperties.size < allVacantProperties.size
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
 
     var selectedPropertyId by remember { mutableStateOf<String?>(null) }
@@ -104,9 +113,23 @@ fun AssignTenantScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCance
                 modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = MaskanDimens.screenHPadding),
                 verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
             ) {
-                if (vacantProperties.isEmpty()) {
+                if (vacantProperties.isEmpty() && hasLockedVacantProperties) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Your other vacant properties are locked on the free plan. Resubscribe to Pro to assign a new tenant there.",
+                            style = MaskanType.body,
+                            color = colors.textSecondary,
+                        )
+                        Text(
+                            text = "Upgrade to Pro",
+                            style = MaskanType.bodyMedium,
+                            color = colors.gradientStart,
+                            modifier = Modifier.clickable(onClick = onUpgradeRequired),
+                        )
+                    }
+                } else if (vacantProperties.isEmpty()) {
                     Text(
-                        text = "No vacant properties available. All your properties are currently occupied.",
+                        text = "All your properties are occupied. Add a property first, or remove an existing tenant.",
                         style = MaskanType.body,
                         color = colors.textSecondary,
                     )
@@ -278,7 +301,7 @@ private fun AssignedCredentialsContent(assigned: AssignedTenant, onDone: () -> U
 
             CredentialCard(label = "Tenant", value = assigned.tenant.name)
             CredentialCard(label = "Property ID", value = assigned.tenant.propertyIdCode)
-            CredentialCard(label = "Temporary Password", value = assigned.temporaryPassword)
+            CredentialCard(label = "Temporary password", value = assigned.temporaryPassword)
         }
 
         GradientButton(

@@ -80,7 +80,6 @@ fun LandlordSettingsScreen(
 
     var notificationsEnabled by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     var showNotificationsBlockedDialog by remember { mutableStateOf(false) }
-    var showPrivacyDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -233,6 +232,13 @@ fun LandlordSettingsScreen(
                 Text(text = "ABOUT", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
                 MaskanCard(modifier = Modifier.fillMaxWidth()) {
                     Row(
+                        modifier = Modifier.fillMaxWidth().clickable { openSupportEmail(context) }.padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(text = "Contact Support", style = MaskanType.body, color = colors.textPrimary)
+                        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
+                    }
+                    Row(
                         modifier = Modifier.fillMaxWidth().clickable {
                             runCatching {
                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}")))
@@ -244,7 +250,7 @@ fun LandlordSettingsScreen(
                         Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
                     }
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { showPrivacyDialog = true }.padding(vertical = 10.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { openPrivacyPolicy(context) }.padding(vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(text = "Privacy Policy", style = MaskanType.body, color = colors.textPrimary)
@@ -274,8 +280,8 @@ fun LandlordSettingsScreen(
     if (showNotificationsBlockedDialog) {
         AlertDialog(
             onDismissRequest = { showNotificationsBlockedDialog = false },
-            title = { Text("Notifications are off") },
-            text = { Text("Turn on notifications in system settings to receive alerts from Maskan.") },
+            title = { Text("Notifications Blocked") },
+            text = { Text("To change notification permissions, go to Settings > Maskan.") },
             confirmButton = {
                 TextButton(onClick = {
                     showNotificationsBlockedDialog = false
@@ -288,20 +294,12 @@ fun LandlordSettingsScreen(
         )
     }
 
-    if (showPrivacyDialog) {
-        AlertDialog(
-            onDismissRequest = { showPrivacyDialog = false },
-            title = { Text("Privacy Policy") },
-            text = { Text("The Maskan privacy policy will open here once a hosted URL is published.") },
-            confirmButton = { TextButton(onClick = { showPrivacyDialog = false }) { Text("OK") } },
-        )
-    }
 
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("Log Out") },
-            text = { Text("Are you sure you want to log out?") },
+            title = { Text("Log Out?") },
+            text = { Text("You will be signed out of your account.") },
             confirmButton = {
                 TextButton(onClick = {
                     showLogoutDialog = false
@@ -312,4 +310,17 @@ fun LandlordSettingsScreen(
             dismissButton = { TextButton(onClick = { showLogoutDialog = false }) { Text("Cancel") } },
         )
     }
+}
+
+private const val SUPPORT_EMAIL = "studiodxbai@gmail.com"
+
+/** Same hosted policy the iOS tenant app shows. */
+internal const val PRIVACY_POLICY_URL = "https://dxbaistudio.com/app-privacy-policy"
+
+internal fun openPrivacyPolicy(context: android.content.Context) {
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL))) }
+}
+
+private fun openSupportEmail(context: android.content.Context) {
+    runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL"))) }
 }

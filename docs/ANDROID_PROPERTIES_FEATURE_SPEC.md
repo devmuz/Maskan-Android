@@ -148,7 +148,7 @@ Reached by tapping a flat row (from the list directly, or from Building Detail's
   7. **Delete button** — **owner only** (not shown to co-owners on this screen):
      - Disabled + shows "Deleting…" while the delete request is in flight.
      - **Disabled entirely while the flat is occupied**, with helper text: "Occupied properties can't be deleted — move out or remove the tenant first."
-     - Confirmation dialog: "Delete this property?" — "Its Property ID {code} will be freed. Past bills, payments, and old tenants are kept as history."
+     - Confirmation dialog: "Delete this property?" — "This moves the property to Old — it disappears from your active list, and its Property ID can never be reused. Bills, payments, and tenant history are kept."
      - On success: soft-delete + navigate back. On failure: error dialog with the failure message.
 
 ---

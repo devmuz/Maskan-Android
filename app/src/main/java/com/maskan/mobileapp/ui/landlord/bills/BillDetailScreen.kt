@@ -82,7 +82,10 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
 
     if (bill == null) {
         Box(modifier = Modifier.fillMaxSize().background(colors.background), contentAlignment = Alignment.Center) {
-            Text(text = "Bill not found", style = MaskanType.body, color = colors.textSecondary)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "Bill not found", style = MaskanType.bodyMedium, color = colors.textPrimary)
+                Text(text = "This bill may have been removed.", style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 4.dp))
+            }
         }
         return
     }
@@ -90,6 +93,7 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
     val property = properties.find { it.id == bill.propertyId }
     val currencyCode = property?.currency ?: landlord?.currencyCode ?: "USD"
     val billPayments = payments.filter { it.billId == bill.id }.sortedByDescending { it.paidDate }
+    val paymentActions = rememberPaymentActionsState()
     val statusColor = when (bill.status) {
         BillStatus.PAID -> colors.success
         BillStatus.OVERDUE -> colors.danger
@@ -197,7 +201,11 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
                     Text(text = "Payment History", style = MaskanType.cardTitle, color = colors.textPrimary, modifier = Modifier.padding(bottom = 12.dp))
                     MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
                         billPayments.forEachIndexed { index, payment ->
-                            PaymentRow(payment, currencyCode, dateFormat)
+                            PaymentRow(
+                                payment, currencyCode, dateFormat,
+                                onEdit = { paymentActions.editing = payment },
+                                onDelete = { paymentActions.deleting = payment to bill.type },
+                            )
                             if (index != billPayments.lastIndex) HorizontalDivider(color = colors.border)
                         }
                     }
@@ -214,6 +222,8 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
             )
         }
     }
+
+    PaymentActionDialogs(paymentActions, viewModel, currencyCode)
 
     if (showRecordPayment) {
         val sheetState = rememberModalBottomSheetState()
@@ -241,7 +251,7 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Delete this bill?") },
-            text = { Text("This permanently removes the bill and any payment records against it.") },
+            text = { Text("This will permanently remove the bill record.") },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false
@@ -258,14 +268,15 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
 
 
 @Composable
-private fun PaymentRow(payment: Payment, currencyCode: String, dateFormat: SimpleDateFormat) {
+private fun PaymentRow(payment: Payment, currencyCode: String, dateFormat: SimpleDateFormat, onEdit: () -> Unit, onDelete: () -> Unit) {
     val colors = MaskanTheme.colors
-    Row(modifier = Modifier.fillMaxWidth().padding(MaskanDimens.cardPadding), horizontalArrangement = Arrangement.SpaceBetween) {
-        Column {
+    Row(modifier = Modifier.fillMaxWidth().padding(MaskanDimens.cardPadding), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(text = AmountFormatter.format(payment.amount, currencyCode), style = MaskanType.bodyMedium, color = colors.textPrimary)
             Text(text = payment.method, style = MaskanType.secondary, color = colors.textSecondary)
         }
         Text(text = payment.paidDate?.let { dateFormat.format(it) } ?: "", style = MaskanType.secondary, color = colors.textSecondary)
+        PaymentActionMenu(onEdit = onEdit, onDelete = onDelete)
     }
 }
 
@@ -303,7 +314,7 @@ private fun RecordBillPaymentSheet(
             }
         }
 
-        AppTextField(value = notes, onValueChange = { notes = it }, label = "Notes (optional)", singleLine = false, minLines = 2)
+        AppTextField(value = notes, onValueChange = { notes = it }, label = "Notes (Optional)", placeholder = "e.g. Paid on govt portal, txn #ABC123", singleLine = false, minLines = 2)
 
         MaskanCard(modifier = Modifier.fillMaxWidth(), subtle = true) {
             DetailRow("Type", typeLabel)

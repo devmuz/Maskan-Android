@@ -54,9 +54,9 @@ fun LandlordSignUpScreen(navController: NavHostController) {
     }
 
     AuthScaffold(icon = Icons.Filled.PersonAddAlt, title = "Create account", subtitle = "Start managing your properties with Maskan") {
-        AppTextField(value = email, onValueChange = { email = it; error = null }, label = "Email", keyboardType = KeyboardType.Email)
-        AppTextField(value = password, onValueChange = { password = it; error = null }, label = "Password (min 6 characters)", isPassword = true)
-        AppTextField(value = confirmPassword, onValueChange = { confirmPassword = it; error = null }, label = "Confirm Password", isPassword = true)
+        AppTextField(value = email, onValueChange = { email = it; error = null }, label = "Email", placeholder = "you@example.com", keyboardType = KeyboardType.Email)
+        AppTextField(value = password, onValueChange = { password = it; error = null }, label = "Password", placeholder = "At least 6 characters", isPassword = true)
+        AppTextField(value = confirmPassword, onValueChange = { confirmPassword = it; error = null }, label = "Confirm password", placeholder = "Repeat your password", isPassword = true)
 
         error?.let {
             Text(text = it, style = MaskanType.secondary.copy(fontWeight = FontWeight.Medium), color = colors.danger)

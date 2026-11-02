@@ -123,6 +123,13 @@ fun EditPropertyScreen(viewModel: LandlordViewModel, propertyId: String, onDone:
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = MaskanDimens.screenHPadding),
             verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
         ) {
+            if (property.propertyType?.supportsMultipleUnits == true) {
+                Text(
+                    text = "Building details apply to every flat in this building; unit name and rent apply to this flat only.",
+                    style = MaskanType.secondary,
+                    color = colors.textSecondary,
+                )
+            }
             val currentPhotoUrl = property.photoUrl?.takeIf { it.isNotBlank() && !photoRemoved }
             val hasPhoto = newPhotoUri != null || currentPhotoUrl != null
             Column {
@@ -171,15 +178,15 @@ fun EditPropertyScreen(viewModel: LandlordViewModel, propertyId: String, onDone:
                 }
             }
 
-            AppTextField(value = buildingName, onValueChange = { buildingName = it }, label = if (property.propertyType?.supportsMultipleUnits == true) "Building name" else "Property name")
-            AppTextField(value = address, onValueChange = { address = it }, label = "Address")
+            AppTextField(value = buildingName, onValueChange = { buildingName = it }, label = if (property.propertyType?.supportsMultipleUnits == true) "Building name" else "Property name", placeholder = "e.g. Willow Apartments")
+            AppTextField(value = address, onValueChange = { address = it }, label = "Address", placeholder = "Street, area, city")
             if (property.propertyType?.supportsMultipleUnits == true) {
-                AppTextField(value = unit, onValueChange = { unit = it }, label = "Unit name")
+                AppTextField(value = unit, onValueChange = { unit = it }, label = "Unit name", placeholder = "e.g. Flat 2B")
             }
-            AppTextField(value = rent, onValueChange = { rent = it.filter { c -> c.isDigit() || c == '.' } }, label = "Monthly rent", keyboardType = KeyboardType.Number)
-            AppTextField(value = electricity, onValueChange = { electricity = it }, label = "Electricity account number", keyboardType = KeyboardType.Number)
-            AppTextField(value = houseTax, onValueChange = { houseTax = it }, label = "House tax number")
-            AppTextField(value = waterTax, onValueChange = { waterTax = it }, label = "Water tax number")
+            AppTextField(value = rent, onValueChange = { rent = it.filter { c -> c.isDigit() || c == '.' } }, label = "Monthly rent", placeholder = "e.g. 2500", keyboardType = KeyboardType.Number)
+            AppTextField(value = electricity, onValueChange = { electricity = it }, label = "Electricity account number", placeholder = "e.g. 100234567890", keyboardType = KeyboardType.Number)
+            AppTextField(value = houseTax, onValueChange = { houseTax = it }, label = "House tax number", placeholder = "e.g. HT-889021")
+            AppTextField(value = waterTax, onValueChange = { waterTax = it }, label = "Water tax number", placeholder = "e.g. WT-102938")
 
             error?.let { Text(text = it, style = MaskanType.secondary, color = colors.danger) }
 

@@ -91,7 +91,8 @@ fun LandlordRequestDetailScreen(viewModel: LandlordViewModel, requestId: String,
                 }
                 Text(text = request.title, style = MaskanType.sectionTitle, color = colors.textPrimary, modifier = Modifier.padding(top = 12.dp))
                 if (request.description.isNotBlank()) {
-                    Text(text = request.description, style = MaskanType.body, color = colors.textSecondary, modifier = Modifier.padding(top = 6.dp))
+                    Text(text = "DETAILS", style = MaskanType.overline, color = colors.textSecondary, modifier = Modifier.padding(top = 12.dp))
+                    Text(text = request.description, style = MaskanType.body, color = colors.textPrimary, modifier = Modifier.padding(top = 6.dp))
                 }
 
                 Column(modifier = Modifier.padding(top = 16.dp)) {
@@ -110,6 +111,9 @@ fun LandlordRequestDetailScreen(viewModel: LandlordViewModel, requestId: String,
                 }
             }
 
+            if (request.status != ServiceRequestStatus.RESOLVED) {
+                Text(text = "UPDATE STATUS", style = MaskanType.overline, color = colors.textSecondary)
+            }
             when (request.status) {
                 ServiceRequestStatus.PENDING -> {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -131,7 +135,9 @@ fun LandlordRequestDetailScreen(viewModel: LandlordViewModel, requestId: String,
                         onClick = { scope.launch { viewModel.serviceRequestRepository.updateStatus(request.id, ServiceRequestStatus.RESOLVED) } },
                     )
                 }
-                ServiceRequestStatus.RESOLVED -> Unit
+                ServiceRequestStatus.RESOLVED -> {
+                    Text(text = "This request has been resolved.", style = MaskanType.bodyMedium, color = colors.success)
+                }
             }
 
             Box(modifier = Modifier.padding(bottom = 24.dp))

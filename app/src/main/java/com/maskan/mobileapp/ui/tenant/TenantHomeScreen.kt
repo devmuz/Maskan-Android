@@ -80,13 +80,14 @@ fun TenantHomeScreen(
     BackHandler { showExitConfirm = true }
 
     val tenant by viewModel.tenant.collectAsStateWithLifecycle()
+    val billsError by viewModel.billsError.collectAsStateWithLifecycle()
     val property by viewModel.property.collectAsStateWithLifecycle()
     val pendingBills by viewModel.pendingBills.collectAsStateWithLifecycle()
     val paidBills by viewModel.paidBills.collectAsStateWithLifecycle()
     val requests by viewModel.requests.collectAsStateWithLifecycle()
     val totalDue by viewModel.totalDue.collectAsStateWithLifecycle()
     val currencyCode by viewModel.currencyCode.collectAsStateWithLifecycle()
-    val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
+    val moveInFormat = remember { SimpleDateFormat("d MMMM yyyy", Locale.getDefault()) }
 
     val title = tenant?.name?.trim()?.takeIf { it.isNotBlank() }?.split(" ")?.firstOrNull()
         ?.let { "Hello, $it" } ?: "Hi!"
@@ -143,7 +144,7 @@ fun TenantHomeScreen(
                             modifier = Modifier.height(16.dp),
                         )
                         Text(
-                            text = if (pendingBills.isEmpty()) "No pending dues" else "${pendingBills.size} bill(s) outstanding",
+                            text = if (pendingBills.isEmpty()) "No pending dues" else "${pendingBills.size} bill${if (pendingBills.size == 1) "" else "s"} outstanding",
                             style = MaskanType.secondary,
                             color = Color.White.copy(alpha = 0.9f),
                         )
@@ -193,7 +194,7 @@ fun TenantHomeScreen(
                             val metrics = buildList {
                                 add(Triple(Icons.Filled.Payments as ImageVector, "Monthly Rent", AmountFormatter.format(prop.monthlyRent, currencyCode)))
                                 add(Triple(Icons.Filled.Tag as ImageVector, "Property ID", prop.propertyIdCode))
-                                prop.propertyType?.let { add(Triple(Icons.Filled.Apartment as ImageVector, "Type", it.label)) }
+                                prop.propertyType?.let { add(Triple(Icons.Filled.Apartment as ImageVector, "Property Type", it.label)) }
                             }
                             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 metrics.forEachIndexed { index, (icon, label, value) ->
@@ -209,12 +210,26 @@ fun TenantHomeScreen(
                     MaskanCard(modifier = Modifier.fillMaxWidth(), subtle = true) {
                         Text(text = tenant!!.propertyIdCode, style = MaskanType.bodyMedium, color = colors.textPrimary)
                         tenant!!.moveInDate?.let {
-                            Text(text = "Since ${dateFormat.format(it)}", style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
+                            Text(text = "Move-in: ${moveInFormat.format(it)}", style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
                         }
                     }
                 }
 
-                if (nothingAtAll) {
+                if (billsError != null) {
+                    MaskanCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Filled.Warning, contentDescription = null, tint = colors.warning, modifier = Modifier.size(28.dp))
+                            Text(text = "Couldn't load bills", style = MaskanType.bodyMedium, color = colors.textPrimary, modifier = Modifier.padding(top = 8.dp))
+                            Text(
+                                text = billsError.orEmpty(),
+                                style = MaskanType.secondary,
+                                color = colors.textSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                    }
+                } else if (nothingAtAll) {
                     EmptyState(
                         icon = Icons.Filled.CheckCircle,
                         title = "All caught up",

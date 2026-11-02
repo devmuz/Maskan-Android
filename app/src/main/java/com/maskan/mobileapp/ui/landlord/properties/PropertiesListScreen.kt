@@ -133,7 +133,7 @@ fun PropertiesScreen(
                     item {
                         EmptyState(
                             icon = Icons.Filled.Apartment,
-                            title = "No active properties",
+                            title = "No properties yet",
                             message = "Add your first property to start managing rent and bills.",
                         )
                     }
@@ -193,6 +193,18 @@ fun PropertiesScreen(
         ) {
             Icon(Icons.Filled.Add, contentDescription = "Add Property")
         }
+    }
+
+    val photoUploadError by viewModel.photoUploadError.collectAsStateWithLifecycle()
+    photoUploadError?.let { message ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { viewModel.reportPhotoUploadError(null) },
+            title = { Text("Photo upload failed") },
+            text = { Text("The property was saved, but its photo couldn't be uploaded. $message") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { viewModel.reportPhotoUploadError(null) }) { Text("OK") }
+            },
+        )
     }
 }
 

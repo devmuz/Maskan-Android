@@ -66,8 +66,8 @@ fun LandlordLoginScreen(navController: NavHostController) {
     }
 
     AuthScaffold(icon = Icons.Filled.Apartment, title = "Welcome back", subtitle = "Log in to manage your properties") {
-        AppTextField(value = email, onValueChange = { email = it; error = null }, label = "Email", keyboardType = KeyboardType.Email)
-        AppTextField(value = password, onValueChange = { password = it; error = null }, label = "Password", isPassword = true)
+        AppTextField(value = email, onValueChange = { email = it; error = null }, label = "Email", placeholder = "you@example.com", keyboardType = KeyboardType.Email)
+        AppTextField(value = password, onValueChange = { password = it; error = null }, label = "Password", placeholder = "Your password", isPassword = true)
 
         Text(
             text = "Forgot password?",

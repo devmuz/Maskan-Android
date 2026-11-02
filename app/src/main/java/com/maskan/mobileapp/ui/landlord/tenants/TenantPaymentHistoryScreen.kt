@@ -1,5 +1,7 @@
 package com.maskan.mobileapp.ui.landlord.tenants
 
+import com.maskan.mobileapp.ui.landlord.bills.PaymentActionDialogs
+import com.maskan.mobileapp.ui.landlord.bills.rememberPaymentActionsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,6 +57,7 @@ fun TenantPaymentHistoryScreen(viewModel: LandlordViewModel, tenantId: String, o
     val currencyCode = property?.currency ?: "USD"
     val billsById = remember(bills) { bills.associateBy { it.id } }
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
+    val paymentActions = rememberPaymentActionsState()
 
     val propertyPayments = remember(payments, property) {
         property?.let { p -> payments.filter { it.propertyId == p.id }.sortedByDescending { it.paidDate } }.orEmpty()
@@ -80,8 +83,8 @@ fun TenantPaymentHistoryScreen(viewModel: LandlordViewModel, tenantId: String, o
         if (propertyPayments.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.Receipt,
-                title = "No payments yet",
-                message = "This tenant's recorded payments will appear here.",
+                title = "No Payments",
+                message = "No payments have been recorded for this tenant.",
             )
         } else {
             Column(
@@ -97,7 +100,12 @@ fun TenantPaymentHistoryScreen(viewModel: LandlordViewModel, tenantId: String, o
                         )
                         MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
                             monthPayments.forEachIndexed { index, payment ->
-                                PaymentHistoryRow(payment, billsById[payment.billId]?.type, currencyCode, dateFormat)
+                                val type = billsById[payment.billId]?.type
+                                PaymentHistoryRow(
+                                    payment, type, currencyCode, dateFormat,
+                                    onEdit = { paymentActions.editing = payment },
+                                    onDelete = { paymentActions.deleting = payment to type },
+                                )
                                 if (index != monthPayments.lastIndex) {
                                     HorizontalDivider(color = colors.border)
                                 }
@@ -109,4 +117,6 @@ fun TenantPaymentHistoryScreen(viewModel: LandlordViewModel, tenantId: String, o
             }
         }
     }
+
+    PaymentActionDialogs(paymentActions, viewModel, currencyCode)
 }
