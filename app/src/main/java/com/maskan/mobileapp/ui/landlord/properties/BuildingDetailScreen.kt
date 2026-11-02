@@ -109,7 +109,7 @@ fun BuildingDetailScreen(
     val myUid = viewModel.landlordUid
     val isOwner = representative.landlordId == myUid
     val coOwnerUids = representative.coOwners.orEmpty()
-    val currencyCode = representative.currency ?: landlord?.currencyCode ?: "USD"
+    val currencyCode = representative.currency ?: landlord?.preferredCurrency ?: "USD"
     val isLocked = remember(group, properties, isPro) {
         isBuildingLocked(group.key, representative.landlordId, myUid, isPro, properties)
     }

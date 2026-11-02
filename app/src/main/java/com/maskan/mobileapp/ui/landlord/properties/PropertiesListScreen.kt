@@ -80,7 +80,7 @@ fun PropertiesScreen(
     val groups = remember(properties) { groupProperties(properties) }
     val archivedGroups = remember(archivedProperties) { groupProperties(archivedProperties) }
     val currencyCode = { flats: List<com.maskan.mobileapp.data.model.Property> ->
-        flats.firstOrNull()?.currency ?: landlord?.currencyCode ?: "USD"
+        flats.firstOrNull()?.currency ?: landlord?.preferredCurrency ?: "USD"
     }
     // Only buildings this landlord primarily owns count against the free limit — co-owned
     // buildings never do (feature-iap.md).

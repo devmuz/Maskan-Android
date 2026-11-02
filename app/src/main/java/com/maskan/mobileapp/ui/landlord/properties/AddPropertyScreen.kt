@@ -246,7 +246,7 @@ fun AddPropertyScreen(
                                 houseTaxNumber = houseTax.ifBlank { null },
                                 waterTaxNumber = waterTax.ifBlank { null },
                             )
-                            val currencyCode = viewModel.landlord.value?.currencyCode ?: "USD"
+                            val currencyCode = viewModel.landlord.value?.preferredCurrency ?: "USD"
                             val createdIds = viewModel.propertyRepository.addProperty(viewModel.landlordUid, input, currencyCode)
                             onDone()
 

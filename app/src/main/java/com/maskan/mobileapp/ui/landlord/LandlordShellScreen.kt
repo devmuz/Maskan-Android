@@ -1,5 +1,7 @@
 package com.maskan.mobileapp.ui.landlord
 
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import com.maskan.mobileapp.data.repository.isBuildingLocked
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -137,6 +139,16 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
     LaunchedEffect(properties.isNotEmpty()) {
         if (properties.isNotEmpty()) {
             coachMarkSequencer.finishIfPropertiesAlreadyExist()
+        }
+    }
+
+    // Deleted on another device while this one was still signed in: the
+    // account is gone as far as the user knows, so leave the session.
+    val landlordProfile by viewModel.landlord.collectAsStateWithLifecycle()
+    LaunchedEffect(landlordProfile?.deletionScheduledFor) {
+        if (landlordProfile?.deletionScheduledFor != null) {
+            viewModel.signOut()
+            onSignedOut()
         }
     }
 

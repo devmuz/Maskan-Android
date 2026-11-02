@@ -176,6 +176,17 @@ fun PaywallScreen(viewModel: LandlordViewModel, onBack: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp).padding(top = 16.dp),
             )
+            val context = androidx.compose.ui.platform.LocalContext.current
+            Text(
+                text = "Privacy Policy",
+                style = MaskanType.caption.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                color = colors.gradientStart,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+                    .clickable { openPrivacyPolicy(context) },
+            )
         }
     }
 }

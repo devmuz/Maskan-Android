@@ -73,7 +73,7 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
     val properties by viewModel.properties.collectAsStateWithLifecycle()
     val landlord by viewModel.landlord.collectAsStateWithLifecycle()
     val propertiesById = remember(properties) { properties.associateBy { it.id } }
-    val fallbackCurrencyCode = landlord?.currencyCode ?: "USD"
+    val fallbackCurrencyCode = landlord?.preferredCurrency ?: "USD"
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
 
     var filter by remember { mutableStateOf(BillFilter.ALL) }

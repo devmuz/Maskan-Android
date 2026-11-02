@@ -54,7 +54,7 @@ fun PropertyExpensesScreen(viewModel: LandlordViewModel, propertyId: String, onB
     val expenses = remember(bills, siblingIds) {
         bills.filter { it.propertyId in siblingIds && it.paidBy == PaidBy.LANDLORD }.sortedByDescending { it.dueDate?.time ?: 0L }
     }
-    val currencyCode = anchor?.currency ?: landlord?.currencyCode ?: "USD"
+    val currencyCode = anchor?.currency ?: landlord?.preferredCurrency ?: "USD"
 
     Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
         Box(modifier = Modifier.fillMaxWidth().padding(8.dp)) {

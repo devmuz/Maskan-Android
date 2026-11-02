@@ -90,7 +90,7 @@ fun DashboardScreen(
     val upcoming = remember(bills) { upcomingBills(bills, today) }
     val chartBuckets = remember(bills, payments) { chartBuckets(bills, payments) }
     val propertiesById = remember(properties) { properties.associateBy { it.id } }
-    val fallbackCurrencyCode = landlord?.currencyCode ?: "USD"
+    val fallbackCurrencyCode = landlord?.preferredCurrency ?: "USD"
 
     val statCards = listOf(
         StatCardData(Icons.Filled.Apartment, properties.size.toString(), "Properties", colors.gradientStart),

@@ -76,11 +76,14 @@ fun LandlordSettingsScreen(
     val email = container.authRepository.currentUser?.email ?: "Landlord"
     val landlord by viewModel.landlord.collectAsStateWithLifecycle()
     val theme by container.themePreferences.themeFlow.collectAsStateWithLifecycle(initialValue = AppTheme.SYSTEM)
-    val currentCurrency = remember(landlord?.currencyCode) { Currencies.byCode(landlord?.currencyCode) }
+    val currentCurrency = remember(landlord?.preferredCurrency) { Currencies.byCode(landlord?.preferredCurrency) }
 
     var notificationsEnabled by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     var showNotificationsBlockedDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var isDeletingAccount by remember { mutableStateOf(false) }
+    var deleteAccountError by remember { mutableStateOf<String?>(null) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         notificationsEnabled = granted
@@ -267,6 +270,15 @@ fun LandlordSettingsScreen(
                 contentColor = colors.danger,
             )
 
+            GradientButton(
+                text = "Delete Account",
+                onClick = { showDeleteAccountDialog = true },
+                isLoading = isDeletingAccount,
+                loadingText = "Deleting…",
+                brush = SolidColor(colors.fieldBackground),
+                contentColor = colors.danger,
+            )
+
             Text(
                 text = "Maskan $versionName",
                 style = MaskanType.caption,
@@ -308,6 +320,46 @@ fun LandlordSettingsScreen(
                 }) { Text("Log Out", color = colors.danger) }
             },
             dismissButton = { TextButton(onClick = { showLogoutDialog = false }) { Text("Cancel") } },
+        )
+    }
+
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            title = { Text("Delete Account?") },
+            text = {
+                Text(
+                    "Your account and all its data — properties, tenants, bills, and documents — will be permanently deleted. This can't be undone.\n\n" +
+                        "Active subscriptions aren't cancelled automatically — manage them in Google Play › Payments & subscriptions.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteAccountDialog = false
+                    isDeletingAccount = true
+                    scope.launch {
+                        try {
+                            viewModel.landlordRepository.requestAccountDeletion(viewModel.landlordUid)
+                            viewModel.signOut()
+                            onSignedOut()
+                        } catch (t: Throwable) {
+                            deleteAccountError = t.message ?: "Something went wrong."
+                        } finally {
+                            isDeletingAccount = false
+                        }
+                    }
+                }) { Text("Delete Account", color = colors.danger) }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteAccountDialog = false }) { Text("Cancel") } },
+        )
+    }
+
+    deleteAccountError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { deleteAccountError = null },
+            title = { Text("Couldn't Delete Account") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { deleteAccountError = null }) { Text("OK") } },
         )
     }
 }

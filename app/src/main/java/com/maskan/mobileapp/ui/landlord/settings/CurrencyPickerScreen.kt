@@ -62,7 +62,7 @@ fun CurrencyPickerScreen(viewModel: LandlordViewModel, onBack: () -> Unit) {
             items(Currencies.all, key = { it.code }) { option ->
                 CurrencyRow(
                     option = option,
-                    selected = option.code == landlord?.currencyCode,
+                    selected = option.code == landlord?.preferredCurrency,
                     onClick = {
                         val id = viewModel.landlordUid
                         scope.launch {

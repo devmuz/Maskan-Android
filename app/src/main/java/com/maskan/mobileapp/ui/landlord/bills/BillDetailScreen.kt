@@ -91,7 +91,7 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
     }
 
     val property = properties.find { it.id == bill.propertyId }
-    val currencyCode = property?.currency ?: landlord?.currencyCode ?: "USD"
+    val currencyCode = property?.currency ?: landlord?.preferredCurrency ?: "USD"
     val billPayments = payments.filter { it.billId == bill.id }.sortedByDescending { it.paidDate }
     val paymentActions = rememberPaymentActionsState()
     val statusColor = when (bill.status) {

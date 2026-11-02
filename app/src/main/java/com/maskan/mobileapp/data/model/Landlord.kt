@@ -13,6 +13,9 @@ data class Landlord(
     @DocumentId
     val id: String = "",
     val email: String = "",
+    /** Written by iOS (and by Android since 1.0.0); read in preference to [currencyCode]. */
+    val currency: String? = null,
+    /** Older Android-only field name — still read so existing profiles keep their currency. */
     val currencyCode: String? = null,
     /** Admin-granted Pro, never expires. Set manually in the Firebase console. */
     val proOverride: Boolean? = null,
@@ -24,7 +27,15 @@ data class Landlord(
     val fcmToken: String? = null,
     /** How the account was first created — "email" / "google" / "apple" (iOS only). Written once, never overwritten by later logins. */
     val loginWith: String? = null,
+    /** Set while the account is in its 30-day deletion grace period (see LandlordRepository.requestAccountDeletion). */
+    val deletionRequestedAt: Date? = null,
+    val deletionScheduledFor: Date? = null,
 ) {
+    /** The landlord's chosen currency, whichever field name wrote it. */
+    @get:Exclude
+    val preferredCurrency: String?
+        get() = currency ?: currencyCode
+
     /**
      * Pro status resolution order (02-data-models.md): proOverride first (no
      * expiry check), then proExpiryDate > now as the fallback that lets the

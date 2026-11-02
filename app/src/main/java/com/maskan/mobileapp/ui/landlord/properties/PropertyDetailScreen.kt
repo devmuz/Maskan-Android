@@ -67,7 +67,7 @@ fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBac
     var copied by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var deleteError by remember { mutableStateOf<String?>(null) }
-    val currencyCode = property?.currency ?: landlord?.currencyCode ?: "USD"
+    val currencyCode = property?.currency ?: landlord?.preferredCurrency ?: "USD"
 
     if (property == null) {
         Box(modifier = Modifier.fillMaxSize().background(colors.background), contentAlignment = Alignment.Center) {

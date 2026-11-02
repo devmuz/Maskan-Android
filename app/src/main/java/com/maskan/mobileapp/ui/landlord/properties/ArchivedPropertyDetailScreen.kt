@@ -66,7 +66,7 @@ fun ArchivedPropertyDetailScreen(
     val tenants by viewModel.tenants.collectAsStateWithLifecycle()
     val bills by viewModel.bills.collectAsStateWithLifecycle()
     val property = archivedProperties.find { it.id == propertyId }
-    val currencyCode = property?.currency ?: viewModel.landlord.value?.currencyCode ?: "USD"
+    val currencyCode = property?.currency ?: viewModel.landlord.value?.preferredCurrency ?: "USD"
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
 
     if (property == null) {

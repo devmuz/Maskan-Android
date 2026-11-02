@@ -31,6 +31,10 @@ fun friendlyAuthErrorMessage(t: Throwable): String {
         return t.message ?: "Something went wrong. Please try again."
     }
 
+    if (t is com.maskan.mobileapp.data.repository.AccountDeletedException) {
+        return t.message.orEmpty()
+    }
+
     if (t is FirebaseNetworkException) {
         return "No internet connection. Please check your network and try again."
     }
