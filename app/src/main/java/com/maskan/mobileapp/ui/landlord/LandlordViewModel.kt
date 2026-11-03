@@ -39,6 +39,7 @@ class LandlordViewModel(private val container: AppContainer) : ViewModel() {
     val serviceRequestRepository get() = container.serviceRequestRepository
     val landlordRepository get() = container.landlordRepository
     val purchaseRepository get() = container.purchaseRepository
+    val authRepository get() = container.authRepository
 
     val landlordUid: String get() = landlordId
 

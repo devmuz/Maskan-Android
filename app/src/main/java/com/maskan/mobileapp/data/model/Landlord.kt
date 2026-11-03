@@ -27,9 +27,6 @@ data class Landlord(
     val fcmToken: String? = null,
     /** How the account was first created — "email" / "google" / "apple" (iOS only). Written once, never overwritten by later logins. */
     val loginWith: String? = null,
-    /** Set while the account is in its 30-day deletion grace period (see LandlordRepository.requestAccountDeletion). */
-    val deletionRequestedAt: Date? = null,
-    val deletionScheduledFor: Date? = null,
 ) {
     /** The landlord's chosen currency, whichever field name wrote it. */
     @get:Exclude

@@ -44,7 +44,7 @@ class AppContainer(context: Context) {
     val rolePreferences = RolePreferences(appContext)
     val themePreferences = ThemePreferences(appContext)
     val coachmarkPreferences = CoachmarkPreferences(appContext)
-    val authRepository = AuthRepository(firebaseAuth, functions, firestore)
+    val authRepository = AuthRepository(firebaseAuth, functions)
     val propertyRepository = PropertyRepository(firestore, storage)
     val tenantRepository = TenantRepository(firestore, functions)
     val billingRepository = BillingRepository(firestore)

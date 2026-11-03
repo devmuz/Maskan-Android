@@ -1,6 +1,5 @@
 package com.maskan.mobileapp.data.repository
 
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -19,7 +18,6 @@ import kotlinx.coroutines.tasks.await
 class AuthRepository(
     private val auth: FirebaseAuth,
     private val functions: FirebaseFunctions,
-    private val firestore: FirebaseFirestore,
 ) {
     val currentUser: FirebaseUser?
         get() = auth.currentUser
@@ -32,7 +30,6 @@ class AuthRepository(
 
     suspend fun signInLandlord(email: String, password: String) {
         auth.signInWithEmailAndPassword(email.trim(), password).await()
-        rejectIfDeleted()
     }
 
     suspend fun signUpLandlord(email: String, password: String) {
@@ -43,21 +40,16 @@ class AuthRepository(
     suspend fun signInLandlordWithGoogle(googleIdToken: String) {
         val credential = GoogleAuthProvider.getCredential(googleIdToken, null)
         auth.signInWithCredential(credential).await()
-        rejectIfDeleted()
     }
 
     /**
-     * A deleted account is only marked (`deletionScheduledFor`) and purged
-     * by the backend 30 days later; to the user it's gone, so refuse the
-     * sign-in. Support restores an account by clearing that field.
+     * Permanently deletes the signed-in landlord and everything they own —
+     * properties, tenants, bills, documents, Storage files and the Auth
+     * user — via the deleteAccount{Env} Cloud Function.
      */
-    private suspend fun rejectIfDeleted() {
-        val uid = auth.currentUser?.uid ?: return
-        val profile = firestore.collection("landlords").document(uid).get().await()
-        if (profile.get("deletionScheduledFor") != null) {
-            auth.signOut()
-            throw AccountDeletedException()
-        }
+    suspend fun deleteAccount() {
+        functions.getHttpsCallable("deleteAccount${CloudFunctionEnv.suffix}").call().await()
+        auth.signOut()
     }
 
     suspend fun sendPasswordReset(email: String) {
@@ -82,5 +74,3 @@ class AuthRepository(
         auth.signOut()
     }
 }
-
-class AccountDeletedException : Exception("This account has been deleted.")

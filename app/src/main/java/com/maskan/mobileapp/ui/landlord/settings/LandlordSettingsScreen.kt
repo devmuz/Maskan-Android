@@ -82,6 +82,7 @@ fun LandlordSettingsScreen(
     var showNotificationsBlockedDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountFinalDialog by remember { mutableStateOf(false) }
     var isDeletingAccount by remember { mutableStateOf(false) }
     var deleteAccountError by remember { mutableStateOf<String?>(null) }
 
@@ -270,13 +271,15 @@ fun LandlordSettingsScreen(
                 contentColor = colors.danger,
             )
 
-            GradientButton(
-                text = "Delete Account",
-                onClick = { showDeleteAccountDialog = true },
-                isLoading = isDeletingAccount,
-                loadingText = "Deleting…",
-                brush = SolidColor(colors.fieldBackground),
-                contentColor = colors.danger,
+            Text(
+                text = if (isDeletingAccount) "Deleting…" else "Delete Account",
+                style = MaskanType.secondary,
+                color = colors.textSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !isDeletingAccount) { showDeleteAccountDialog = true }
+                    .padding(vertical = 8.dp),
             )
 
             Text(
@@ -336,10 +339,25 @@ fun LandlordSettingsScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteAccountDialog = false
+                    showDeleteAccountFinalDialog = true
+                }) { Text("Delete Account", color = colors.danger) }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteAccountDialog = false }) { Text("Cancel") } },
+        )
+    }
+
+    if (showDeleteAccountFinalDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountFinalDialog = false },
+            title = { Text("Are you absolutely sure?") },
+            text = { Text("Your account, properties, tenants, bills, and documents will be deleted right away and can't be recovered.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteAccountFinalDialog = false
                     isDeletingAccount = true
                     scope.launch {
                         try {
-                            viewModel.landlordRepository.requestAccountDeletion(viewModel.landlordUid)
+                            viewModel.authRepository.deleteAccount()
                             viewModel.signOut()
                             onSignedOut()
                         } catch (t: Throwable) {
@@ -348,9 +366,9 @@ fun LandlordSettingsScreen(
                             isDeletingAccount = false
                         }
                     }
-                }) { Text("Delete Account", color = colors.danger) }
+                }) { Text("Delete Permanently", color = colors.danger) }
             },
-            dismissButton = { TextButton(onClick = { showDeleteAccountDialog = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { showDeleteAccountFinalDialog = false }) { Text("Cancel") } },
         )
     }
 

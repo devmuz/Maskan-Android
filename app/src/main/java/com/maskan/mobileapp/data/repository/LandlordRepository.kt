@@ -18,8 +18,6 @@ import java.util.Date
 import java.util.Locale
 
 
-const val ACCOUNT_DELETION_GRACE_DAYS = 30
-
 /**
  * `landlords` collection — one shared instance owned at the landlord
  * tab-shell level (00-overview.md), same lifecycle pattern as the other
@@ -78,23 +76,6 @@ class LandlordRepository(private val firestore: FirebaseFirestore) {
     suspend fun setCurrencyCode(landlordId: String, currencyCode: String) {
         // Both names: iOS reads `currency`, older Android builds read `currencyCode`.
         landlordsCollection.document(landlordId).update(mapOf("currency" to currencyCode, "currencyCode" to currencyCode)).await()
-    }
-
-    // MARK: - Account deletion
-
-    /**
-     * Deletes the account as far as the user is concerned: the profile is
-     * marked and sign-in is refused from now on (AuthRepository). The data
-     * itself is kept for a [ACCOUNT_DELETION_GRACE_DAYS]-day backend grace
-     * period — support can restore by clearing `deletionScheduledFor` —
-     * then the `purgeDeletedAccounts` Cloud Function permanently deletes it.
-     */
-    suspend fun requestAccountDeletion(landlordId: String) {
-        val scheduled = Date(System.currentTimeMillis() + ACCOUNT_DELETION_GRACE_DAYS * 24L * 60 * 60 * 1000)
-        landlordsCollection.document(landlordId).set(
-            mapOf("deletionRequestedAt" to FieldValue.serverTimestamp(), "deletionScheduledFor" to scheduled),
-            SetOptions.merge(),
-        ).await()
     }
 
     /**
