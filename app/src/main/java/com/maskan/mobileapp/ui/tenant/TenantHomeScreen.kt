@@ -1,6 +1,8 @@
 package com.maskan.mobileapp.ui.tenant
 
 import android.app.Activity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -161,7 +163,7 @@ fun TenantHomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = colors.gradientStart, modifier = Modifier.size(18.dp))
-                            Text(text = "I've Paid Rent", style = MaskanType.bodyMedium, color = colors.gradientStart)
+                            Text(text = "I've Paid Rent", style = MaskanType.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), color = colors.gradientStart)
                         }
                     }
                 }
@@ -257,7 +259,7 @@ fun TenantHomeScreen(
                                 if (paidBills.size > 5) {
                                     Text(
                                         text = "View All",
-                                        style = MaskanType.bodyMedium,
+                                        style = MaskanType.secondary.copy(fontWeight = FontWeight.SemiBold),
                                         color = colors.gradientStart,
                                         modifier = Modifier.clickableNoRipple(onOpenHistory),
                                     )
@@ -277,7 +279,7 @@ fun TenantHomeScreen(
                                 if (requests.size > 3) {
                                     Text(
                                         text = "View All",
-                                        style = MaskanType.bodyMedium,
+                                        style = MaskanType.secondary.copy(fontWeight = FontWeight.SemiBold),
                                         color = colors.gradientStart,
                                         modifier = Modifier.clickableNoRipple(onOpenRequests),
                                     )

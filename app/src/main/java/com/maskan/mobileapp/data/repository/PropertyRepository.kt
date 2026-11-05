@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.data.repository
 
+import com.maskan.mobileapp.data.util.StorageEnv
 import com.maskan.mobileapp.data.model.Property
 import com.maskan.mobileapp.data.model.PropertyIdCodeEntry
 import com.maskan.mobileapp.data.model.PropertyType
@@ -21,7 +22,7 @@ import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 /** Building-level co-ownership cap (feature-properties.md / feature-iap.md). */
-const val MAX_CO_OWNERS = 7
+const val MAX_CO_OWNERS = 5
 
 /** Free-tier co-owner limit per building — Pro allows up to [MAX_CO_OWNERS] (feature-iap.md). */
 const val FREE_CO_OWNER_LIMIT = 1
@@ -286,7 +287,7 @@ class PropertyRepository(
         when (photo) {
             PhotoEdit.Keep -> Unit
             is PhotoEdit.Replace -> {
-                val ref = storage.reference.child("properties/${property.landlordId}/${UUID.randomUUID()}.jpg")
+                val ref = storage.reference.child("properties/${StorageEnv.folder}/${property.landlordId}/${UUID.randomUUID()}.jpg")
                 ref.putBytes(photo.imageBytes).await()
                 sharedFields["photoUrl"] = ref.downloadUrl.await().toString()
             }
@@ -418,7 +419,7 @@ class PropertyRepository(
 
     /** Two-phase upload: doc(s) already exist with photoUrl=null; compress+upload, then patch. */
     suspend fun uploadPhoto(landlordId: String, propertyIds: List<String>, imageBytes: ByteArray) {
-        val ref = storage.reference.child("properties/$landlordId/${UUID.randomUUID()}.jpg")
+        val ref = storage.reference.child("properties/${StorageEnv.folder}/$landlordId/${UUID.randomUUID()}.jpg")
         ref.putBytes(imageBytes).await()
         val downloadUrl = ref.downloadUrl.await().toString()
 

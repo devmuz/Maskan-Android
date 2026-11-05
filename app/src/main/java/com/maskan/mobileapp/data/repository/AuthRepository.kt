@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.data.repository
 
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -52,6 +53,25 @@ class AuthRepository(
         auth.signOut()
     }
 
+    /**
+     * Firebase requires a recent sign-in to change the password, so this
+     * re-authenticates with the current password first (which also verifies it).
+     */
+    suspend fun changeLandlordPassword(current: String, new: String) {
+        val user = auth.currentUser ?: return
+        val email = user.email ?: return
+        try {
+            user.reauthenticate(EmailAuthProvider.getCredential(email, current)).await()
+        } catch (t: com.google.firebase.auth.FirebaseAuthInvalidCredentialsException) {
+            throw IncorrectCurrentPasswordException()
+        }
+        user.updatePassword(new).await()
+    }
+
+    /** Landlords who sign in with email/password can change it in Settings. */
+    val hasPasswordLogin: Boolean
+        get() = auth.currentUser?.providerData?.any { it.providerId == "password" } == true
+
     suspend fun sendPasswordReset(email: String) {
         auth.sendPasswordResetEmail(email.trim()).await()
     }
@@ -74,3 +94,5 @@ class AuthRepository(
         auth.signOut()
     }
 }
+
+class IncorrectCurrentPasswordException : Exception("Current password is incorrect.")

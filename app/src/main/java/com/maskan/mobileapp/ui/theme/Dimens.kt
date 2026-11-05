@@ -9,7 +9,7 @@ object MaskanDimens {
     val buttonHeight = 56.dp
     val fieldHeight = 52.dp
     val cardPadding = 18.dp
-    val sectionSpacing = 20.dp
+    val sectionSpacing = 24.dp
     val itemSpacing = 12.dp
     val screenHPadding = 20.dp
 

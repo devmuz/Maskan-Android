@@ -271,7 +271,7 @@ fun TenantSettingsScreen(
             )
 
             Text(
-                text = "Maskan $versionName",
+                text = "App version $versionName",
                 style = MaskanType.caption,
                 color = colors.textTertiary,
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 24.dp),

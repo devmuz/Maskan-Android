@@ -10,6 +10,8 @@ import com.google.firebase.functions.FirebaseFunctionsException
  * internal class names) must never reach the screen.
  */
 fun friendlyAuthErrorMessage(t: Throwable): String {
+    if (t is com.maskan.mobileapp.data.repository.IncorrectCurrentPasswordException) return t.message.orEmpty()
+
     if (t is FirebaseAuthException) {
         return when (t.errorCode) {
             "ERROR_WRONG_PASSWORD", "ERROR_INVALID_CREDENTIAL" -> "Incorrect email or password."

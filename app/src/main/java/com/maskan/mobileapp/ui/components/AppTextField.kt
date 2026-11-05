@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.components
 
+import androidx.compose.ui.unit.sp
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -67,10 +68,13 @@ fun AppTextField(
     val borderWidth = if (isFocused || isError) 1.5.dp else 1.dp
 
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(text = label, style = MaskanType.fieldLabel, color = colors.textSecondary)
+        // A blank label (the caller shows its own title) takes no space.
+        if (label.isNotBlank()) {
+            Text(text = label, style = MaskanType.fieldLabel, color = colors.textSecondary)
+        }
         Box(
             modifier = Modifier
-                .padding(top = 6.dp)
+                .padding(top = if (label.isNotBlank()) 6.dp else 0.dp)
                 .fillMaxWidth()
                 .let { if (singleLine) it.height(MaskanDimens.fieldHeight) else it }
                 .background(colors.fieldBackground, RoundedCornerShape(MaskanDimens.cornerRadius))
@@ -81,7 +85,7 @@ fun AppTextField(
             if (value.isEmpty() && placeholder != null) {
                 Text(
                     text = placeholder,
-                    style = MaskanType.body,
+                    style = MaskanType.body.copy(fontSize = 16.sp),
                     color = colors.textTertiary,
                     modifier = Modifier.padding(vertical = if (singleLine) 0.dp else 14.dp),
                 )
@@ -94,7 +98,7 @@ fun AppTextField(
                         .weight(1f)
                         .padding(vertical = if (singleLine) 0.dp else 14.dp)
                         .onFocusChanged { isFocused = it.isFocused },
-                    textStyle = MaskanType.body.copy(color = colors.textPrimary),
+                    textStyle = MaskanType.body.copy(fontSize = 16.sp, color = colors.textPrimary),
                     cursorBrush = SolidColor(colors.gradientStart),
                     keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                     visualTransformation = if (isPassword && !isPasswordVisible) {

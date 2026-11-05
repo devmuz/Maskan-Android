@@ -165,7 +165,7 @@ fun DashboardScreen(
                         .background(colors.primaryGradient, RoundedCornerShape(MaskanDimens.cornerRadius))
                         .padding(MaskanDimens.cardPadding),
                 ) {
-                    Text(text = "Everything, at a glance", style = MaskanType.cardTitle.copy(fontSize = 22.sp), color = Color.White)
+                    Text(text = "Everything, at a glance", style = MaskanType.cardTitle.copy(fontSize = 20.sp), color = Color.White)
                     Text(
                         text = "Occupancy, dues, and activity across every property you manage.",
                         style = MaskanType.secondary,
@@ -193,7 +193,7 @@ fun DashboardScreen(
                         modifier = Modifier.padding(top = 2.dp, bottom = 16.dp),
                     )
                     if (chartBuckets.all { it.collected == 0.0 && it.expense == 0.0 }) {
-                        Text(text = "No rent or bills recorded yet.", style = MaskanType.body, color = colors.textSecondary)
+                        Text(text = "No rent or bills recorded yet.", style = MaskanType.message, color = colors.textSecondary)
                     } else {
                         GroupedBarChart(
                             labels = chartBuckets.map { it.label },

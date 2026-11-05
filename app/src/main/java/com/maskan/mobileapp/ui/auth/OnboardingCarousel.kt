@@ -265,7 +265,7 @@ private fun OnboardingSlideView(slide: OnboardingSlide, progress: Float, reduceM
                 )
                 Text(
                     text = slide.subtitle,
-                    style = MaskanType.body,
+                    style = MaskanType.body.copy(fontSize = 16.sp, lineHeight = 22.sp),
                     color = colors.textSecondary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 12.dp).graphicsLayer { translationX = shift(0.7f) },
@@ -335,7 +335,7 @@ private fun HeroRow(icon: ImageVector, title: String, detail: String, modifier: 
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         IconTile(icon, tint)
         Column {
-            Text(title, style = MaskanType.secondary.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary, maxLines = 1)
+            Text(title, style = MaskanType.secondary.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), color = colors.textPrimary, maxLines = 1)
             Text(detail, style = MaskanType.caption.copy(fontWeight = FontWeight.Normal), color = colors.textSecondary, maxLines = 1)
         }
     }
@@ -374,7 +374,7 @@ private fun ColumnScope.RentHero() {
         Pill("Pending", colors.warning)
     }
     Column {
-        Text("Rent · November", style = MaskanType.caption.copy(fontWeight = FontWeight.Normal), color = colors.textSecondary)
+        Text("Rent · November", style = MaskanType.secondary, color = colors.textSecondary)
         Text("$deviceCurrencyCode 6,500", style = MaskanType.statValue.copy(fontSize = 26.sp), color = colors.textPrimary)
     }
     HorizontalDivider(color = colors.border)
@@ -390,7 +390,7 @@ private fun ColumnScope.TenantHero() {
             .background(colors.primaryGradient, RoundedCornerShape(16.dp))
             .padding(14.dp),
     ) {
-        Text("Hello, Sara", style = MaskanType.caption, color = Color.White.copy(alpha = 0.8f))
+        Text("Hello, Sara", style = MaskanType.secondary.copy(fontWeight = FontWeight.Medium), color = Color.White.copy(alpha = 0.8f))
         Text("$deviceCurrencyCode 6,500", style = MaskanType.statValue, color = Color.White, modifier = Modifier.padding(top = 4.dp))
         Row(
             modifier = Modifier
@@ -437,7 +437,7 @@ private fun ColumnScope.InsightsHero() {
                     Box(Modifier.size(width = 9.dp, height = (90 * value).dp).background(colors.gold, RoundedCornerShape(3.dp)))
                     Box(Modifier.size(width = 9.dp, height = (90 * value * 0.45f).dp).background(colors.gradientStart, RoundedCornerShape(3.dp)))
                 }
-                Text(months[index], style = MaskanType.badge.copy(fontWeight = FontWeight.Normal), color = colors.textTertiary, modifier = Modifier.padding(top = 4.dp))
+                Text(months[index], style = MaskanType.badge.copy(fontSize = 10.sp, fontWeight = FontWeight.Normal), color = colors.textTertiary, modifier = Modifier.padding(top = 4.dp))
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.components
 
+import androidx.compose.ui.draw.shadow
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,7 +40,7 @@ fun <T> SegmentedControl(
         options.forEach { option ->
             val isSelected = option == selected
             val bg by animateColorAsState(
-                targetValue = if (isSelected) colors.textSecondary.copy(alpha = 0.35f) else androidx.compose.ui.graphics.Color.Transparent,
+                targetValue = if (isSelected) colors.surface else androidx.compose.ui.graphics.Color.Transparent,
                 label = "segmentBg",
             )
             Box(
@@ -50,6 +51,8 @@ fun <T> SegmentedControl(
                         indication = null,
                         onClick = { onSelect(option) },
                     )
+                    // Selected segment: raised white pill, as on iOS.
+                    .then(if (isSelected) Modifier.shadow(2.dp, RoundedCornerShape(50), ambientColor = colors.shadowColor, spotColor = colors.shadowColor) else Modifier)
                     .background(bg, RoundedCornerShape(50))
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,

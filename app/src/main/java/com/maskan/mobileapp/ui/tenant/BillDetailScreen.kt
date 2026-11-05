@@ -118,7 +118,7 @@ fun BillDetailScreen(
                         Icon(Icons.Filled.Info, contentDescription = null, tint = colors.warning)
                         Text(
                             text = "Your payment is being verified by your landlord.",
-                            style = MaskanType.bodyMedium,
+                            style = MaskanType.message,
                             color = colors.textPrimary,
                         )
                     }

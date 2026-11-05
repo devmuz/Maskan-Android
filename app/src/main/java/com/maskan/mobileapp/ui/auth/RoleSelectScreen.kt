@@ -82,10 +82,10 @@ fun RoleSelectScreen(navController: NavHostController) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = "Maskan",
-                    style = MaskanType.screenTitle.copy(fontSize = 26.sp, lineHeight = 30.sp),
+                    style = MaskanType.screenTitle.copy(fontSize = 24.sp, lineHeight = 28.sp),
                     color = colors.textPrimary,
                 )
-                Text(text = "Your Rental Property Manager", style = MaskanType.body, color = colors.textSecondary)
+                Text(text = "Your Rental Property Manager", style = MaskanType.secondary, color = colors.textSecondary)
             }
         }
 
@@ -106,7 +106,9 @@ fun RoleSelectScreen(navController: NavHostController) {
                 onClick = { navController.navigate(Routes.LANDLORD_LOGIN) },
                 brush = colors.primaryGradient,
                 contentColor = Color.White,
-                leadingIcon = { Icon(Icons.Filled.Apartment, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp)) },
+                leadingIcon = { Icon(Icons.Filled.Apartment, contentDescription = null, tint = Color.White, modifier = Modifier.size(RoleButtonIconSize)) },
+                height = RoleButtonHeight,
+                textStyle = RoleButtonTextStyle,
             )
             SecondaryRoleButton(
                 text = "I am a Tenant",
@@ -131,7 +133,7 @@ private fun SecondaryRoleButton(text: String, onClick: () -> Unit, modifier: Mod
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(MaskanDimens.buttonHeight)
+            .height(RoleButtonHeight)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(shape)
             .background(colors.surface)
@@ -140,7 +142,13 @@ private fun SecondaryRoleButton(text: String, onClick: () -> Unit, modifier: Mod
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Filled.Person, contentDescription = null, tint = colors.gradientStart, modifier = Modifier.size(20.dp))
-        Text(text = text, style = MaskanType.buttonLabel, color = colors.gradientStart)
+        Icon(Icons.Filled.Person, contentDescription = null, tint = colors.gradientStart, modifier = Modifier.size(RoleButtonIconSize))
+        Text(text = text, style = RoleButtonTextStyle, color = colors.gradientStart)
     }
 }
+
+// iOS uses 56pt / 17pt on a ~402pt-wide iPhone; scaled to this ~384dp-wide
+// layout so the role buttons take up the same share of the screen.
+private val RoleButtonHeight = 54.dp
+private val RoleButtonIconSize = 18.dp
+private val RoleButtonTextStyle = MaskanType.buttonLabel.copy(fontSize = 16.sp, lineHeight = 21.sp)

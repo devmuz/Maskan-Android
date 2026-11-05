@@ -21,7 +21,9 @@
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Maskan"
-            android:windowSoftInputMode="adjustResize">
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize"
+            tools:ignore="LockedOrientationActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

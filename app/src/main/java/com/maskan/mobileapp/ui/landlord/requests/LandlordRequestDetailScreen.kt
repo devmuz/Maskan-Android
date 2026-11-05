@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.landlord.requests
 
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -136,7 +137,7 @@ fun LandlordRequestDetailScreen(viewModel: LandlordViewModel, requestId: String,
                     )
                 }
                 ServiceRequestStatus.RESOLVED -> {
-                    Text(text = "This request has been resolved.", style = MaskanType.bodyMedium, color = colors.success)
+                    Text(text = "This request has been resolved.", style = MaskanType.bodyMedium.copy(fontSize = 14.sp), color = colors.success)
                 }
             }
 

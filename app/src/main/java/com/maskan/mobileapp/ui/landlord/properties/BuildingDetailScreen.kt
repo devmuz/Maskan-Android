@@ -1,5 +1,7 @@
 package com.maskan.mobileapp.ui.landlord.properties
 
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -147,7 +149,7 @@ fun BuildingDetailScreen(
         showAddFlatForm = true
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding().imePadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -304,7 +306,7 @@ fun BuildingDetailScreen(
 
                 if (!isOwner) {
                     MaskanCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        Text(text = "Owner", style = MaskanType.secondary, color = colors.textSecondary)
+                        Text(text = "Owner", style = MaskanType.caption.copy(fontSize = 11.sp, fontWeight = FontWeight.Normal), color = colors.textSecondary)
                         Text(text = ownerEmail ?: "Loading…", style = MaskanType.bodyMedium, color = colors.textPrimary, modifier = Modifier.padding(top = 2.dp))
                     }
                 }
@@ -402,7 +404,7 @@ fun BuildingDetailScreen(
                     if (!allVacant) {
                         Text(
                             text = "All units must be vacant before deleting the property.",
-                            style = MaskanType.secondary,
+                            style = MaskanType.caption.copy(fontWeight = FontWeight.Normal),
                             color = colors.textSecondary,
                             modifier = Modifier.padding(top = 8.dp),
                         )

@@ -1,5 +1,26 @@
 package com.maskan.mobileapp.ui.landlord.settings
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.draw.scale
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.PanTool
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ArrowCircleUp
+import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Brush
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -67,6 +88,7 @@ fun LandlordSettingsScreen(
     viewModel: LandlordViewModel,
     onOpenCurrencyPicker: () -> Unit,
     onOpenPaywall: () -> Unit,
+    onOpenChangePassword: () -> Unit,
     onSignedOut: () -> Unit,
 ) {
     val container = LocalAppContainer.current
@@ -108,7 +130,7 @@ fun LandlordSettingsScreen(
         ) {
             Text(text = "Settings", style = MaskanType.screenTitle, color = colors.textPrimary)
 
-            // 1. Header
+            // 1. Header (avatar + email, as on iOS)
             Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
                     modifier = Modifier
@@ -123,153 +145,143 @@ fun LandlordSettingsScreen(
             }
 
             // 2. Appearance
-            Column {
-                Text(text = "APPEARANCE", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
-                Text(text = "Theme", style = MaskanType.fieldLabel, color = colors.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
+            SettingsSection("APPEARANCE") {
+                SettingsRow(icon = Icons.Filled.Brush, iconColor = SettingsColors.purple, title = "Theme")
                 SegmentedControl(
                     options = listOf(AppTheme.SYSTEM, AppTheme.LIGHT, AppTheme.DARK),
                     selected = theme,
                     onSelect = { scope.launch { container.themePreferences.setTheme(it) } },
                     label = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
                 )
             }
 
             // 3. Preferences: Currency
-            Column {
-                Text(text = "PREFERENCES", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
-                MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenCurrencyPicker),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(text = "Currency", style = MaskanType.body, color = colors.textPrimary)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = currentCurrency?.let { "${it.displayName} ${it.symbol}" } ?: "USD",
-                                style = MaskanType.bodyMedium,
-                                color = colors.textSecondary,
-                            )
-                            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
-                        }
-                    }
+            SettingsSection("PREFERENCES") {
+                SettingsRow(
+                    icon = Icons.Filled.AttachMoney,
+                    iconColor = SettingsColors.green,
+                    title = "Currency",
+                    value = currentCurrency?.let { "${it.displayName} ${it.symbol}" } ?: "USD",
+                    trailing = SettingsTrailing.Chevron,
+                    onClick = onOpenCurrencyPicker,
+                )
+                if (container.authRepository.hasPasswordLogin) {
+                    SettingsDivider()
+                    SettingsRow(
+                        icon = Icons.Filled.Key,
+                        iconColor = colors.gradientStart,
+                        title = "Change Password",
+                        trailing = SettingsTrailing.Chevron,
+                        onClick = onOpenChangePassword,
+                    )
                 }
             }
 
             // 4. Notifications
-            Column {
-                Text(text = "NOTIFICATIONS", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
-                MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "Push Notifications", style = MaskanType.body, color = colors.textPrimary)
-                        Switch(
-                            checked = notificationsEnabled,
-                            onCheckedChange = { enable ->
-                                if (enable) {
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                        notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                                    } else {
-                                        notificationsEnabled = true
-                                    }
+            SettingsSection("NOTIFICATIONS") {
+                SettingsRow(icon = Icons.Filled.Notifications, iconColor = SettingsColors.red, title = "Push Notifications") {
+                    // Without the 48dp minimum touch box and slightly scaled down,
+                    // this row is the same height as the others (like iOS's toggle).
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                    Switch(
+                        modifier = Modifier.height(24.dp).scale(0.8f),
+                        checked = notificationsEnabled,
+                        onCheckedChange = { enable ->
+                            if (enable) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                                 } else {
-                                    showNotificationsBlockedDialog = true
+                                    notificationsEnabled = true
                                 }
-                            },
-                        )
+                            } else {
+                                showNotificationsBlockedDialog = true
+                            }
+                        },
+                    )
                     }
                 }
             }
 
             // 5. Subscription
-            Column {
-                Text(text = "SUBSCRIPTION", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
-                MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                    val isPro = landlord?.isPro == true
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier.size(40.dp).background((if (isPro) colors.gold else colors.textTertiary).copy(alpha = 0.14f), CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = if (isPro) colors.gold else colors.textTertiary)
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = if (isPro) "Maskan Pro" else "Free Plan", style = MaskanType.bodyMedium, color = colors.textPrimary)
-                            Text(
-                                text = if (isPro) "All features unlocked" else "1 property · 1 co-owner per building",
-                                style = MaskanType.secondary,
-                                color = colors.textSecondary,
-                            )
-                        }
-                        if (isPro) StatusBadge(text = "Active", color = colors.success)
-                    }
-
-                    HorizontalDivider(color = colors.border, modifier = Modifier.padding(vertical = 12.dp))
-
-                    if (isPro) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                runCatching {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/account/subscriptions")))
-                                }
-                            },
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(text = "Manage Subscription", style = MaskanType.body, color = colors.textPrimary)
-                            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenPaywall),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(text = "Upgrade to Pro", style = MaskanType.bodyMedium, color = colors.gradientStart)
-                            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.gradientStart)
-                        }
-                    }
+            SettingsSection("SUBSCRIPTION") {
+                val isPro = landlord?.isPro == true
+                SettingsRow(
+                    icon = Icons.Filled.WorkspacePremium,
+                    iconColor = if (isPro) colors.gold else SettingsColors.grey,
+                    title = if (isPro) "Maskan Pro" else "Free Plan",
+                    subtitle = if (isPro) "All features unlocked" else "1 property · 1 co-owner per building",
+                ) {
+                    if (isPro) StatusBadge(text = "Active", color = colors.success)
+                }
+                SettingsDivider()
+                if (isPro) {
+                    SettingsRow(
+                        icon = Icons.Filled.Autorenew,
+                        iconColor = SettingsColors.blue,
+                        title = "Manage Subscription",
+                        trailing = SettingsTrailing.External,
+                        onClick = {
+                            runCatching {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/account/subscriptions")))
+                            }
+                        },
+                    )
+                } else {
+                    SettingsRow(
+                        icon = Icons.Filled.ArrowCircleUp,
+                        iconColor = colors.gradientStart,
+                        title = "Upgrade to Pro",
+                        titleColor = colors.gradientStart,
+                        titleWeight = FontWeight.SemiBold,
+                        trailing = SettingsTrailing.Chevron,
+                        onClick = onOpenPaywall,
+                    )
                 }
             }
 
             // 6. About
-            Column {
-                Text(text = "ABOUT", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
-                MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { openSupportEmail(context) }.padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(text = "Contact Support", style = MaskanType.body, color = colors.textPrimary)
-                        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable {
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}")))
-                            }
-                        }.padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(text = "Rate Maskan", style = MaskanType.body, color = colors.textPrimary)
-                        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { openPrivacyPolicy(context) }.padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(text = "Privacy Policy", style = MaskanType.body, color = colors.textPrimary)
-                        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
-                    }
-                }
+            SettingsSection("ABOUT") {
+                SettingsRow(
+                    icon = Icons.Filled.Email,
+                    iconColor = SettingsColors.orange,
+                    title = "Contact Support",
+                    trailing = SettingsTrailing.External,
+                    onClick = { openSupportEmail(context) },
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = Icons.Filled.Star,
+                    iconColor = SettingsColors.yellow,
+                    title = "Rate Maskan",
+                    trailing = SettingsTrailing.External,
+                    onClick = {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}")))
+                        }
+                    },
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = Icons.Filled.PanTool,
+                    iconColor = SettingsColors.blue,
+                    title = "Privacy Policy",
+                    trailing = SettingsTrailing.Chevron,
+                    onClick = { openPrivacyPolicy(context) },
+                )
             }
 
             // 7. Log Out
-            GradientButton(
-                text = "Log Out",
-                onClick = { showLogoutDialog = true },
-                brush = SolidColor(colors.fieldBackground),
-                contentColor = colors.danger,
-            )
+            MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+                SettingsRow(
+                    icon = Icons.AutoMirrored.Filled.Logout,
+                    iconColor = colors.danger,
+                    title = "Log Out",
+                    titleColor = colors.danger,
+                    titleWeight = FontWeight.SemiBold,
+                    onClick = { showLogoutDialog = true },
+                )
+            }
 
             Text(
                 text = if (isDeletingAccount) "Deleting…" else "Delete Account",
@@ -283,7 +295,7 @@ fun LandlordSettingsScreen(
             )
 
             Text(
-                text = "Maskan $versionName",
+                text = "App version $versionName",
                 style = MaskanType.caption,
                 color = colors.textTertiary,
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 24.dp),
@@ -393,4 +405,80 @@ internal fun openPrivacyPolicy(context: android.content.Context) {
 
 private fun openSupportEmail(context: android.content.Context) {
     runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL"))) }
+}
+
+// MARK: - iOS-style settings rows (LandlordProfileView's settingsSection / settingsIcon)
+
+/** System-style tile colours used by the iOS settings icons. */
+private object SettingsColors {
+    val purple = Color(0xFFAF52DE)
+    val green = Color(0xFF34C759)
+    val red = Color(0xFFFF3B30)
+    val orange = Color(0xFFFF9500)
+    val yellow = Color(0xFFFFBF00)
+    val blue = Color(0xFF007AFF)
+    val grey = Color(0xFF8E8E93)
+}
+
+private enum class SettingsTrailing { None, Chevron, External }
+
+@Composable
+private fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    val colors = MaskanTheme.colors
+    Column {
+        Text(
+            text = title,
+            style = MaskanType.overline,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+        )
+        MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp), content = content)
+    }
+}
+
+@Composable
+private fun SettingsDivider() {
+    HorizontalDivider(color = MaskanTheme.colors.border, modifier = Modifier.padding(start = 58.dp))
+}
+
+@Composable
+private fun SettingsRow(
+    icon: ImageVector,
+    iconColor: Color,
+    title: String,
+    subtitle: String? = null,
+    value: String? = null,
+    titleColor: Color = MaskanTheme.colors.textPrimary,
+    titleWeight: FontWeight = FontWeight.Medium,
+    trailing: SettingsTrailing = SettingsTrailing.None,
+    onClick: (() -> Unit)? = null,
+    accessory: (@Composable () -> Unit)? = null,
+) {
+    val colors = MaskanTheme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .let { if (onClick != null) it.clickable(onClick = onClick) else it }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier.size(30.dp).background(iconColor, RoundedCornerShape(7.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaskanType.bodyMedium.copy(fontWeight = titleWeight), color = titleColor)
+            subtitle?.let { Text(text = it, style = MaskanType.caption.copy(fontWeight = FontWeight.Normal), color = colors.textSecondary) }
+        }
+        value?.let { Text(text = it, style = MaskanType.secondary.copy(fontSize = 13.sp), color = colors.textSecondary, maxLines = 1) }
+        accessory?.invoke()
+        when (trailing) {
+            SettingsTrailing.Chevron -> Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(20.dp))
+            SettingsTrailing.External -> Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(16.dp))
+            SettingsTrailing.None -> Unit
+        }
+    }
 }

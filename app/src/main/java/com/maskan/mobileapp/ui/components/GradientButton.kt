@@ -53,6 +53,8 @@ fun GradientButton(
     brush: Brush? = null,
     contentColor: Color? = null,
     leadingIcon: @Composable (() -> Unit)? = null,
+    height: androidx.compose.ui.unit.Dp = MaskanDimens.buttonHeight,
+    textStyle: androidx.compose.ui.text.TextStyle = MaskanType.buttonLabel,
 ) {
     val colors = MaskanTheme.colors
     val interactionSource = remember { MutableInteractionSource() }
@@ -85,7 +87,7 @@ fun GradientButton(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(MaskanDimens.buttonHeight)
+            .height(height)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .shadow(elevation = if (isDisabledLook) 0.dp else 16.dp, shape = shape, ambientColor = shadowTint, spotColor = shadowTint)
             .clip(shape)
@@ -112,10 +114,10 @@ fun GradientButton(
                         color = resolvedContentColor,
                         strokeWidth = 2.dp,
                     )
-                    Text(text = loadingText ?: text, style = MaskanType.buttonLabel, color = resolvedContentColor)
+                    Text(text = loadingText ?: text, style = textStyle, color = resolvedContentColor)
                 } else {
                     leadingIcon?.invoke()
-                    Text(text = text, style = MaskanType.buttonLabel, color = resolvedContentColor)
+                    Text(text = text, style = textStyle, color = resolvedContentColor)
                 }
             }
         }

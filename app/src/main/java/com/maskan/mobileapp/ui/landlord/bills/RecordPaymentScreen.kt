@@ -1,6 +1,7 @@
 package com.maskan.mobileapp.ui.landlord.bills
 
 import com.maskan.mobileapp.data.repository.isBuildingLocked
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -97,7 +98,7 @@ fun RecordPaymentScreen(viewModel: LandlordViewModel, fixedPropertyId: String? =
 
     val isValid = selectedPropertyId != null && (amount.toDoubleOrNull() ?: 0.0) > 0
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding().imePadding()) {
         Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp)) {
             Box(
                 modifier = Modifier

@@ -3,6 +3,9 @@ package com.maskan.mobileapp.ui.landlord.tenants
 import com.maskan.mobileapp.ui.landlord.bills.PaymentActionDialogs
 import com.maskan.mobileapp.ui.landlord.bills.PaymentActionMenu
 import com.maskan.mobileapp.ui.landlord.bills.rememberPaymentActionsState
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -135,7 +138,7 @@ fun TenantDetailScreen(
     val recordPayment = { if (isLocked) onUpgradeRequired() else onRecordPayment(property.id) }
     val paymentActions = rememberPaymentActionsState()
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding().imePadding()) {
         Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
             Box(
                 modifier = Modifier
@@ -242,7 +245,7 @@ fun TenantDetailScreen(
                     Text(text = "RENT", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
                     DetailRow("Monthly rent", AmountFormatter.format(property.monthlyRent, currencyCode), verticalPadding = 0.dp)
                     Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable { if (isLocked) onUpgradeRequired() else showDueDayMenu = true }, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Payment due day", style = MaskanType.body, color = colors.textSecondary)
+                        Text(text = "Payment due day", style = MaskanType.message, color = colors.textSecondary)
                         Box {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(text = tenant.rentDueDay?.let { "Day $it" } ?: "Set day", style = MaskanType.bodyMedium, color = if (isLocked) colors.textSecondary else colors.gradientStart)
@@ -275,7 +278,7 @@ fun TenantDetailScreen(
                     Text(text = AmountFormatter.format(currentAmount, currencyCode), style = MaskanType.screenTitle, color = Color.White, modifier = Modifier.padding(top = 8.dp))
 
                     if (isPaid) {
-                        Text(text = "Received this month — nothing pending.", style = MaskanType.body, color = Color.White.copy(alpha = 0.85f), modifier = Modifier.padding(top = 8.dp))
+                        Text(text = "Received this month — nothing pending.", style = MaskanType.secondary, color = Color.White.copy(alpha = 0.85f), modifier = Modifier.padding(top = 8.dp))
                         GradientButton(
                             text = "Record Payment",
                             brush = androidx.compose.ui.graphics.SolidColor(Color.White),
@@ -332,14 +335,14 @@ fun TenantDetailScreen(
                     if (propertyPayments.size > 5) {
                         Text(
                             text = "View All",
-                            style = MaskanType.bodyMedium,
+                            style = MaskanType.secondary.copy(fontWeight = FontWeight.SemiBold),
                             color = colors.gradientStart,
                             modifier = Modifier.clickable { onViewAllPayments(tenant.id) },
                         )
                     }
                 }
                 if (propertyPayments.isEmpty()) {
-                    Text(text = "No payments recorded yet.", style = MaskanType.body, color = colors.textSecondary)
+                    Text(text = "No payments recorded yet.", style = MaskanType.message, color = colors.textSecondary)
                 } else {
                     MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
                         val recentPayments = propertyPayments.take(5)

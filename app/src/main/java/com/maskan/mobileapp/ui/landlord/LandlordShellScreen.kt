@@ -1,5 +1,7 @@
 package com.maskan.mobileapp.ui.landlord
 
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.BackHandler
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import com.maskan.mobileapp.data.repository.isBuildingLocked
@@ -145,6 +147,37 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
     val backStackEntry by innerNavController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = tabItems.any { it.route == currentRoute }
+
+    // Hardware back on a tab root: any other tab → Dashboard; Dashboard →
+    // confirm before closing the app. Detail screens keep normal back.
+    var showExitConfirm by remember { mutableStateOf(false) }
+    val activity = LocalContext.current as? android.app.Activity
+    BackHandler(enabled = showBottomBar) {
+        if (currentRoute == LandlordTab.DASHBOARD) {
+            showExitConfirm = true
+        } else {
+            innerNavController.navigate(LandlordTab.DASHBOARD) {
+                popUpTo(innerNavController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+    if (showExitConfirm) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showExitConfirm = false },
+            title = { androidx.compose.material3.Text("Exit Maskan?") },
+            text = { androidx.compose.material3.Text("Are you sure you want to exit the app?") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { activity?.finish() }) {
+                    androidx.compose.material3.Text("Exit", color = MaskanTheme.colors.danger)
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showExitConfirm = false }) { androidx.compose.material3.Text("Cancel") }
+            },
+        )
+    }
 
     val navBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val contentBottomInset = navBarInset + MaskanDimens.glassBarContentClearance
@@ -382,7 +415,16 @@ fun LandlordShellScreen(onSignedOut: () -> Unit) {
                     viewModel = viewModel,
                     onOpenCurrencyPicker = { innerNavController.navigate("currency_picker") },
                     onOpenPaywall = { innerNavController.navigate("paywall") },
+                    onOpenChangePassword = { innerNavController.navigate("change_password") },
                     onSignedOut = onSignedOut,
+                )
+            }
+            composable("change_password") {
+                com.maskan.mobileapp.ui.tenant.ChangePasswordScreen(
+                    changePassword = { current, new -> viewModel.authRepository.changeLandlordPassword(current, new) },
+                    onDone = { innerNavController.popBackStack() },
+                    onCancel = { innerNavController.popBackStack() },
+                    errorMessage = { com.maskan.mobileapp.data.util.friendlyAuthErrorMessage(it) },
                 )
             }
             composable("currency_picker") {

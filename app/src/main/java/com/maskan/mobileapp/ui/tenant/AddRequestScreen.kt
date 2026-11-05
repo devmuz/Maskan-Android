@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.tenant
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -55,7 +56,7 @@ fun AddRequestScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, onCa
 
     val isValid = title.isNotBlank()
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding().imePadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp).padding(top = 12.dp, bottom = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,

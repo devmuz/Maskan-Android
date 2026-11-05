@@ -1,5 +1,7 @@
 package com.maskan.mobileapp.ui.landlord.bills
 
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -101,7 +103,7 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
         BillStatus.VERIFYING -> colors.warning
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding().imePadding()) {
         Row(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
             IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
         }
@@ -198,7 +200,7 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
 
             if (billPayments.isNotEmpty()) {
                 Column {
-                    Text(text = "Payment History", style = MaskanType.cardTitle, color = colors.textPrimary, modifier = Modifier.padding(bottom = 12.dp))
+                    Text(text = "Payment History", style = MaskanType.cardTitle.copy(fontSize = 15.sp), color = colors.textPrimary, modifier = Modifier.padding(bottom = 12.dp))
                     MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
                         billPayments.forEachIndexed { index, payment ->
                             PaymentRow(

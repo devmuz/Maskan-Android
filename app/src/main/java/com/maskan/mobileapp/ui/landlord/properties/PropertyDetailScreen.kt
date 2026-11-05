@@ -2,6 +2,8 @@ package com.maskan.mobileapp.ui.landlord.properties
 
 import com.maskan.mobileapp.data.repository.isBuildingLocked
 import com.maskan.mobileapp.ui.components.LockedPropertyBanner
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.foundation.background
@@ -191,7 +193,7 @@ fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBac
                 if (property.occupied) {
                     Text(
                         text = "Occupied properties can't be deleted — move out or remove the tenant first.",
-                        style = MaskanType.secondary,
+                        style = MaskanType.caption.copy(fontWeight = FontWeight.Normal),
                         color = colors.textSecondary,
                         modifier = Modifier.padding(top = 8.dp),
                     )

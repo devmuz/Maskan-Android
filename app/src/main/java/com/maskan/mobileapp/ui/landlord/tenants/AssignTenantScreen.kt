@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.landlord.tenants
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -94,7 +95,7 @@ fun AssignTenantScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCance
     var error by remember { mutableStateOf<String?>(null) }
     var result by remember { mutableStateOf<AssignedTenant?>(null) }
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding().imePadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -117,7 +118,7 @@ fun AssignTenantScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCance
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
                             text = "Your other vacant properties are locked on the free plan. Resubscribe to Pro to assign a new tenant there.",
-                            style = MaskanType.body,
+                            style = MaskanType.message,
                             color = colors.textSecondary,
                         )
                         Text(
@@ -130,7 +131,7 @@ fun AssignTenantScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCance
                 } else if (vacantProperties.isEmpty()) {
                     Text(
                         text = "All your properties are occupied. Add a property first, or remove an existing tenant.",
-                        style = MaskanType.body,
+                        style = MaskanType.message,
                         color = colors.textSecondary,
                     )
                 } else {
@@ -294,7 +295,7 @@ private fun AssignedCredentialsContent(assigned: AssignedTenant, onDone: () -> U
             Text(text = "Tenant added", style = MaskanType.sectionTitle, color = colors.textPrimary)
             Text(
                 text = "Share these credentials with your tenant. The password is shown only once — it can't be viewed again.",
-                style = MaskanType.body,
+                style = MaskanType.message,
                 color = colors.textSecondary,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )

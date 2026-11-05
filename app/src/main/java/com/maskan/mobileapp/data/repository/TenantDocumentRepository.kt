@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.data.repository
 
+import com.maskan.mobileapp.data.util.StorageEnv
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -92,7 +93,7 @@ class TenantDocumentRepository(
     }
 
     private suspend fun performUpload(bytes: ByteArray, filename: String, baseName: String, mimeType: String, tenantId: String, landlordId: String) {
-        val path = "tenants/$landlordId/$tenantId/documents/${UUID.randomUUID()}_$filename"
+        val path = "tenants/${StorageEnv.folder}/$landlordId/$tenantId/documents/${UUID.randomUUID()}_$filename"
         _isUploading.value = true
         _uploadProgress.value = 0f
         try {

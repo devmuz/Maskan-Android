@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.auth
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ fun AuthScaffold(
             .background(colors.background)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),

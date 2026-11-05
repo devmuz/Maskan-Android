@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.landlord.properties
 
+import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -208,7 +209,7 @@ private fun EmptyDocuments(locked: Boolean) {
     ) {
         Icon(Icons.Filled.NoteAdd, contentDescription = null, tint = colors.gradientStart, modifier = Modifier.size(52.dp))
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "No documents yet", style = MaskanType.sectionTitle, color = colors.textPrimary)
+        Text(text = "No documents yet", style = MaskanType.cardTitle.copy(fontSize = 18.sp), color = colors.textPrimary)
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = if (locked) "This property is locked on the free plan.\nUpgrade to Pro to upload documents." else "Tap + to upload a PDF or image\nfor this property.",

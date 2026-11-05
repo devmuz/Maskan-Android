@@ -118,7 +118,7 @@ fun TenantShellScreen(onSignedOut: () -> Unit) {
         }
         composable(TenantRoutes.CHANGE_PASSWORD) {
             ChangePasswordScreen(
-                viewModel = viewModel,
+                changePassword = viewModel::changePassword,
                 onDone = { navController.popBackStack() },
                 onCancel = { navController.popBackStack() },
             )

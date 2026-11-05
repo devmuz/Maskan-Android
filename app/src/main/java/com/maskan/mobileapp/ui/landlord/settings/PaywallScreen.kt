@@ -63,7 +63,7 @@ private data class FeatureRow(val icon: ImageVector, val color: Color, val title
 
 private val featureRows = listOf(
     FeatureRow(Icons.Filled.Apartment, Color(0xFF4A389E), "Properties", "1 building", "Unlimited"),
-    FeatureRow(Icons.Filled.Group, Color(0xFF30B0C7), "Co-owners", "1 per building", "Up to 7"),
+    FeatureRow(Icons.Filled.Group, Color(0xFF30B0C7), "Co-owners", "1 per building", "Up to 5"),
     FeatureRow(Icons.Filled.Person, Color(0xFF1C944F), "Tenants", "Unlimited", "Unlimited"),
     FeatureRow(Icons.Filled.Description, Color(0xFFFF9500), "Bills & Payments", "✓", "✓"),
     FeatureRow(Icons.Filled.Notifications, Color(0xFFFF3B30), "Notifications", "✓", "✓"),
@@ -171,7 +171,7 @@ fun PaywallScreen(viewModel: LandlordViewModel, onBack: () -> Unit) {
 
             Text(
                 text = "Subscription auto-renews. Cancel anytime in\nGoogle Play › Payments & subscriptions.",
-                style = MaskanType.caption.copy(fontSize = 11.sp),
+                style = MaskanType.caption.copy(fontSize = 11.sp, fontWeight = FontWeight.Normal),
                 color = colors.textSecondary.copy(alpha = 0.65f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp).padding(top = 16.dp),
@@ -216,7 +216,7 @@ private fun HeroSection() {
         )
         Text(
             text = "Manage unlimited properties and tenants\nwith no restrictions.",
-            style = MaskanType.caption.copy(fontSize = 12.sp),
+            style = MaskanType.caption.copy(fontSize = 12.sp, fontWeight = FontWeight.Normal),
             color = Color.White.copy(alpha = 0.85f),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 40.dp, vertical = 4.dp),
@@ -265,7 +265,7 @@ private fun FeaturesSection() {
 @Composable
 private fun FeatureRowView(row: FeatureRow) {
     val colors = MaskanTheme.colors
-    val proHighlighted = row.pro == "Unlimited" || row.pro == "Up to 7"
+    val proHighlighted = row.pro == "Unlimited" || row.pro == "Up to 5"
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -277,7 +277,7 @@ private fun FeatureRowView(row: FeatureRow) {
         Text(text = row.title, style = MaskanType.body.copy(fontSize = 14.sp), color = colors.textPrimary, modifier = Modifier.weight(1f))
         Text(
             text = row.free,
-            style = MaskanType.caption.copy(fontSize = 12.sp),
+            style = MaskanType.caption.copy(fontSize = 12.sp, fontWeight = FontWeight.Normal),
             color = colors.textSecondary,
             textAlign = TextAlign.Center,
             modifier = Modifier.width(columnWidth),
@@ -326,7 +326,7 @@ private fun PlanButton(title: String, price: String, badge: String?, detail: Str
                     )
                 }
             }
-            Text(text = detail, style = MaskanType.caption.copy(fontSize = 12.sp), color = colors.textSecondary)
+            Text(text = detail, style = MaskanType.caption.copy(fontSize = 12.sp, fontWeight = FontWeight.Normal), color = colors.textSecondary)
         }
         Text(
             text = price,

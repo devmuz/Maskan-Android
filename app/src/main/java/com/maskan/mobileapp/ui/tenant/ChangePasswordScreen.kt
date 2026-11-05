@@ -1,5 +1,8 @@
 package com.maskan.mobileapp.ui.tenant
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,7 +32,12 @@ import kotlinx.coroutines.launch
  * — landlords use Firebase Auth's forgot-password email flow instead.
  */
 @Composable
-fun ChangePasswordScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, onCancel: () -> Unit) {
+fun ChangePasswordScreen(
+    changePassword: suspend (current: String, new: String) -> Unit,
+    onDone: () -> Unit,
+    onCancel: () -> Unit,
+    errorMessage: (Throwable) -> String = { it.message ?: "Couldn't change your password." },
+) {
     val colors = MaskanTheme.colors
     val scope = rememberCoroutineScope()
 
@@ -42,7 +50,7 @@ fun ChangePasswordScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, 
 
     val isValid = newPassword.length >= 6 && newPassword == confirmPassword && newPassword != currentPassword && currentPassword.isNotEmpty()
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).padding(horizontal = MaskanDimens.screenHPadding)) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = MaskanDimens.screenHPadding)) {
         Text(
             text = "Change Password",
             style = MaskanType.screenTitle,
@@ -58,7 +66,7 @@ fun ChangePasswordScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, 
             error?.let { Text(text = it, style = MaskanType.secondary.copy(fontWeight = FontWeight.Medium), color = colors.danger) }
 
             GradientButton(
-                text = "Save",
+                text = "Change Password",
                 isLoading = isSaving,
                 loadingText = "Saving…",
                 enabled = isValid,
@@ -67,10 +75,10 @@ fun ChangePasswordScreen(viewModel: TenantSessionViewModel, onDone: () -> Unit, 
                     error = null
                     scope.launch {
                         try {
-                            viewModel.changePassword(currentPassword, newPassword)
+                            changePassword(currentPassword, newPassword)
                             didSucceed = true
                         } catch (t: Throwable) {
-                            error = t.message ?: "Couldn't change your password."
+                            error = errorMessage(t)
                         } finally {
                             isSaving = false
                         }

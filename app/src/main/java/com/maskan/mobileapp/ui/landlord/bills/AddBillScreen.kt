@@ -1,5 +1,13 @@
 package com.maskan.mobileapp.ui.landlord.bills
 
+import com.maskan.mobileapp.ui.components.GradientButton
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.filled.UnfoldMore
 import com.maskan.mobileapp.data.repository.isBuildingLocked
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -91,158 +99,177 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
     val period = remember(referenceDate, frequency) { PeriodFormatter.periodFor(referenceDate, frequency) }
     val isValid = selectedPropertyId != null && (amount.toDoubleOrNull() ?: 0.0) > 0
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = "Cancel", style = MaskanType.body, color = colors.gradientStart, modifier = Modifier.clickable(onClick = onCancel))
-            Text(text = "Add Bill", style = MaskanType.cardTitle, color = colors.textPrimary)
+    fun propertyTitle(p: com.maskan.mobileapp.data.model.Property) =
+        if (p.unit.isBlank()) p.displayBuildingName else "${p.displayBuildingName} – ${p.unit}"
+
+    fun save() {
+        val propertyId = selectedPropertyId ?: return
+        // Bills must carry the property's primary owner UID, not the caller's —
+        // co-owners write bills too, and the security rule requires landlordId to
+        // match the property owner (feature-bills.md).
+        val ownerId = properties.find { it.id == propertyId }?.landlordId ?: viewModel.landlordUid
+        isSaving = true
+        error = null
+        scope.launch {
+            try {
+                viewModel.billingRepository.addBill(
+                    ownerId,
+                    NewBillInput(
+                        propertyId = propertyId,
+                        type = type,
+                        frequency = frequency,
+                        paidBy = paidBy,
+                        amount = amount.toDoubleOrNull() ?: 0.0,
+                        referenceDate = referenceDate,
+                        dueDate = dueDate.toDate(),
+                        notes = notes.ifBlank { null },
+                    ),
+                )
+                onDone()
+            } catch (t: Throwable) {
+                error = t.message ?: "Something went wrong."
+            } finally {
+                isSaving = false
+            }
+        }
+    }
+
+    // Same layout as iOS AddBillView: labelled fields, chip pickers, Add Bill at the bottom.
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding().imePadding()) {
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(
-                text = "Save",
-                style = MaskanType.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
-                color = if (isValid) colors.gradientStart else colors.textTertiary,
-                modifier = Modifier.clickable(enabled = isValid && !isSaving) {
-                    val propertyId = selectedPropertyId ?: return@clickable
-                    // Bills must carry the property's primary owner UID, not the caller's —
-                    // co-owners write bills too, and the security rule requires landlordId to
-                    // match the property owner (feature-bills.md).
-                    val ownerId = properties.find { it.id == propertyId }?.landlordId ?: viewModel.landlordUid
-                    isSaving = true
-                    error = null
-                    scope.launch {
-                        try {
-                            viewModel.billingRepository.addBill(
-                                ownerId,
-                                NewBillInput(
-                                    propertyId = propertyId,
-                                    type = type,
-                                    frequency = frequency,
-                                    paidBy = paidBy,
-                                    amount = amount.toDoubleOrNull() ?: 0.0,
-                                    referenceDate = referenceDate,
-                                    dueDate = dueDate.toDate(),
-                                    notes = notes.ifBlank { null },
-                                ),
-                            )
-                            onDone()
-                        } catch (t: Throwable) {
-                            error = t.message ?: "Couldn't save bill"
-                        } finally {
-                            isSaving = false
-                        }
-                    }
-                },
+                text = "Cancel",
+                style = MaskanType.body,
+                color = colors.gradientStart,
+                modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onCancel),
             )
+            Text(text = "Add Bill", style = MaskanType.cardTitle, color = colors.textPrimary, modifier = Modifier.align(Alignment.Center))
         }
 
         Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = MaskanDimens.screenHPadding),
-            verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            Column {
-                Text(text = "PROPERTY", style = MaskanType.overline, color = colors.textTertiary)
+            LabeledField("Property") {
                 val selectedProperty = properties.find { it.id == selectedPropertyId }
                 if (properties.isEmpty()) {
                     Text(
                         text = "No properties found. Add a property first.",
-                        style = MaskanType.body,
+                        style = MaskanType.message,
                         color = colors.textSecondary,
-                        modifier = Modifier.padding(top = 8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(colors.fieldBackground, RoundedCornerShape(MaskanDimens.cornerRadius))
+                            .padding(14.dp),
                     )
-                } else Box(modifier = Modifier.padding(top = 8.dp)) {
-                    FieldRow(
-                        label = "Property",
-                        value = selectedProperty?.let { if (it.unit.isNotBlank()) "${it.displayBuildingName} · ${it.unit}" else it.displayBuildingName } ?: "Select a property",
-                        onClick = { propertyMenuExpanded = true },
-                    )
-                    DropdownMenu(expanded = propertyMenuExpanded, onDismissRequest = { propertyMenuExpanded = false }) {
-                        properties.forEach { p ->
-                            DropdownMenuItem(
-                                text = { Text(if (p.unit.isNotBlank()) "${p.displayBuildingName} · ${p.unit}" else p.displayBuildingName) },
-                                onClick = { selectedPropertyId = p.id; propertyMenuExpanded = false },
-                            )
-                        }
-                    }
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(text = "BILL DETAILS", style = MaskanType.overline, color = colors.textTertiary)
-                Box {
-                    FieldRow(
-                        label = "Bill Type",
-                        value = type.label,
-                        icon = billTypeIcon(type),
-                        onClick = { typeMenuExpanded = true },
-                    )
-                    DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
-                        BillType.entries.forEach { billType ->
-                            DropdownMenuItem(
-                                text = { Text(billType.label) },
-                                leadingIcon = { Icon(billTypeIcon(billType), contentDescription = null) },
-                                onClick = {
-                                    type = billType
-                                    frequency = billType.defaultFrequency
-                                    if (billType == BillType.RENT) paidBy = PaidBy.TENANT
-                                    typeMenuExpanded = false
-                                },
-                            )
-                        }
-                    }
-                }
-                FilterChipBar(
-                    options = listOf(Frequency.MONTHLY, Frequency.ANNUAL, Frequency.ONE_TIME),
-                    selected = frequency,
-                    onSelect = { frequency = it },
-                    label = { it.label },
-                )
-                Column {
-                    Text(text = "Paid By", style = MaskanType.fieldLabel, color = colors.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
-                    val paidByLocked = type == BillType.RENT
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PaidBy.entries.forEach { option ->
-                            val selected = option == paidBy
-                            val brush = if (selected) colors.primaryGradient else androidx.compose.ui.graphics.SolidColor(colors.fieldBackground)
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .background(brush)
-                                    .let { if (!paidByLocked) it.clickable { paidBy = option } else it }
-                                    .alpha(if (paidByLocked && !selected) 0.4f else 1f)
-                                    .padding(horizontal = 18.dp, vertical = 10.dp),
-                            ) {
-                                Text(text = option.label, style = MaskanType.bodyMedium, color = if (selected) Color.White else colors.textSecondary)
+                } else {
+                    Box {
+                        PickerField(
+                            text = selectedProperty?.let { propertyTitle(it) } ?: "Select property",
+                            isPlaceholder = selectedProperty == null,
+                            icon = Icons.Filled.UnfoldMore,
+                            onClick = { propertyMenuExpanded = true },
+                        )
+                        DropdownMenu(expanded = propertyMenuExpanded, onDismissRequest = { propertyMenuExpanded = false }) {
+                            properties.forEach { p ->
+                                DropdownMenuItem(
+                                    text = { Text(propertyTitle(p)) },
+                                    onClick = { selectedPropertyId = p.id; propertyMenuExpanded = false },
+                                )
                             }
                         }
                     }
-                    Text(
-                        text = if (paidBy == PaidBy.TENANT) "Shown to the tenant, who can mark it paid for you to approve."
-                        else "You pay this yourself. It won't be shown to the tenant.",
-                        style = MaskanType.caption,
-                        color = colors.textSecondary,
-                        modifier = Modifier.padding(top = 6.dp),
-                    )
                 }
-                AppTextField(value = amount, onValueChange = { amount = it.filter { c -> c.isDigit() || c == '.' } }, label = "Amount", keyboardType = KeyboardType.Number)
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(text = "PERIOD & DUE DATE", style = MaskanType.overline, color = colors.textTertiary)
-                FieldRow(label = "Reference Date", value = dateFormat.format(referenceDate.toDate()), onClick = { showReferenceDatePicker = true })
-                FieldRow(label = "Period", value = PeriodFormatter.displayLabel(period), valueColor = colors.gradientStart, onClick = null)
-                FieldRow(label = "Due Date", value = dateFormat.format(dueDate.toDate()), onClick = { showDueDatePicker = true })
+            LabeledField("Bill Type") {
+                Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BillType.entries.forEach { billType ->
+                        PillChip(
+                            label = billType.label,
+                            icon = billTypeIcon(billType),
+                            selected = type == billType,
+                            onClick = {
+                                type = billType
+                                frequency = billType.defaultFrequency
+                                if (billType == BillType.RENT) paidBy = PaidBy.TENANT
+                            },
+                        )
+                    }
+                }
             }
 
-            Column {
-                Text(text = "Notes (Optional)", style = MaskanType.fieldLabel, color = colors.textSecondary, modifier = Modifier.padding(bottom = 8.dp))
+            LabeledField("Frequency") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(Frequency.MONTHLY, Frequency.ANNUAL, Frequency.ONE_TIME).forEach { f ->
+                        PillChip(label = f.label, selected = frequency == f, onClick = { frequency = f })
+                    }
+                }
+            }
+
+            LabeledField("Paid By") {
+                val paidByLocked = type == BillType.RENT
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PaidBy.entries.forEach { option ->
+                        PillChip(
+                            label = option.label,
+                            selected = paidBy == option,
+                            enabled = !paidByLocked,
+                            onClick = { paidBy = option },
+                        )
+                    }
+                }
+                Text(
+                    text = if (paidBy == PaidBy.TENANT) "Shown to the tenant, who can mark it paid for you to approve."
+                    else "You pay this yourself. It won't be shown to the tenant.",
+                    style = MaskanType.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Normal),
+                    color = colors.textSecondary,
+                )
+            }
+
+            AppTextField(
+                value = amount,
+                onValueChange = { amount = it.filter { c -> c.isDigit() || c == '.' } },
+                label = "Amount",
+                placeholder = "0",
+                keyboardType = KeyboardType.Decimal,
+            )
+
+            LabeledField("Reference Date") {
+                PickerField(text = dateFormat.format(referenceDate.toDate()), onClick = { showReferenceDatePicker = true })
+                Text(
+                    text = "Period: ${PeriodFormatter.displayLabel(period)}",
+                    style = MaskanType.caption,
+                    color = colors.gradientStart,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
+
+            LabeledField("Due Date") {
+                PickerField(text = dateFormat.format(dueDate.toDate()), onClick = { showDueDatePicker = true })
+            }
+
+            LabeledField("Notes (Optional)") {
                 AppTextField(value = notes, onValueChange = { notes = it }, label = "", placeholder = "e.g. Paid govt portal, receipt #...", singleLine = false, minLines = 3)
             }
 
-            error?.let { Text(text = it, style = MaskanType.secondary, color = colors.danger) }
-            Box(modifier = Modifier.padding(bottom = 24.dp))
+            GradientButton(
+                text = "Add Bill",
+                isLoading = isSaving,
+                loadingText = "Saving…",
+                enabled = isValid,
+                onClick = { save() },
+            )
         }
+    }
+
+    error?.let { message ->
+        AlertDialog(
+            onDismissRequest = { error = null },
+            title = { Text("Couldn't save bill") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { error = null }) { Text("OK") } },
+        )
     }
 
     if (showReferenceDatePicker) {
@@ -275,27 +302,68 @@ fun AddBillScreen(viewModel: LandlordViewModel, onDone: () -> Unit, onCancel: ()
 }
 
 @Composable
-private fun FieldRow(
-    label: String,
-    value: String,
+private fun LabeledField(label: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = label, style = MaskanType.fieldLabel, color = MaskanTheme.colors.textSecondary)
+        content()
+    }
+}
+
+/** 52dp tappable field (property menu, dates) — iOS's Menu/DatePicker rows. */
+@Composable
+private fun PickerField(
+    text: String,
+    onClick: () -> Unit,
+    isPlaceholder: Boolean = false,
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    valueColor: androidx.compose.ui.graphics.Color? = null,
-    onClick: (() -> Unit)?,
 ) {
     val colors = MaskanTheme.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.fieldBackground, RoundedCornerShape(MaskanDimens.cornerRadius))
-            .let { if (onClick != null) it.clickable(onClick = onClick) else it }
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .height(52.dp)
+            .clip(RoundedCornerShape(MaskanDimens.cornerRadius))
+            .background(colors.fieldBackground)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = label, style = MaskanType.body, color = colors.textPrimary)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            icon?.let { Icon(it, contentDescription = null, tint = colors.gradientStart, modifier = Modifier.height(18.dp)) }
-            Text(text = value, style = MaskanType.bodyMedium, color = valueColor ?: colors.gradientStart)
-        }
+        Text(
+            text = text,
+            style = MaskanType.body.copy(fontSize = 16.sp),
+            color = if (isPlaceholder) colors.textTertiary else colors.textPrimary,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+        )
+        icon?.let { Icon(it, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp)) }
+    }
+}
+
+/** Capsule chip used by Bill Type / Frequency / Paid By (gradient when selected). */
+@Composable
+private fun PillChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    enabled: Boolean = true,
+) {
+    val colors = MaskanTheme.colors
+    val contentColor = when {
+        selected -> Color.White
+        !enabled -> colors.textSecondary
+        else -> colors.textPrimary
+    }
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) colors.primaryGradient else androidx.compose.ui.graphics.SolidColor(colors.fieldBackground))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = if (icon != null) 12.dp else 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        icon?.let { Icon(it, contentDescription = null, tint = contentColor, modifier = Modifier.size(14.dp)) }
+        Text(text = label, style = MaskanType.secondary.copy(fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = contentColor)
     }
 }

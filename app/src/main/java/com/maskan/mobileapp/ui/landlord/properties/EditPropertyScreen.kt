@@ -1,6 +1,7 @@
 package com.maskan.mobileapp.ui.landlord.properties
 
 import android.net.Uri
+import androidx.compose.foundation.layout.imePadding
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -108,7 +109,7 @@ fun EditPropertyScreen(viewModel: LandlordViewModel, propertyId: String, onDone:
         properties.filter { it.groupKey == property.groupKey && it.id != property.id }.map { it.id }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding().imePadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
