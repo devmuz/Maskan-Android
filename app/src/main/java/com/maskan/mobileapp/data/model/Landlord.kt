@@ -23,7 +23,7 @@ data class Landlord(
     val proExpiryDate: Date? = null,
     /** Which platform's purchase this expiry came from, e.g. "ios" / "android". */
     val proSource: String? = null,
-    /** Current device's FCM registration token (feature_push.md) — read by the `onNewServiceRequest` Cloud Function. */
+    /** Current device's FCM registration token (feature-push.md) — read by the `onNewServiceRequest` Cloud Function. */
     val fcmToken: String? = null,
     /** How the account was first created — "email" / "google" / "apple" (iOS only). Written once, never overwritten by later logins. */
     val loginWith: String? = null,

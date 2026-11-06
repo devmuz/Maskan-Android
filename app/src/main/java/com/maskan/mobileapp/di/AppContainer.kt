@@ -58,7 +58,7 @@ class AppContainer(context: Context) {
      * Documents is deliberately not a shared singleton like the other four
      * repositories (00-overview.md) — it mirrors iOS's `DocumentService`,
      * which `PropertyDocumentsView` owns as its own `@StateObject` scoped to
-     * one propertyId at a time (feature_documents.md).
+     * one propertyId at a time (feature-documents.md).
      */
     fun newDocumentRepository(): DocumentRepository = DocumentRepository(firestore, storage)
 

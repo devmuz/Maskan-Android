@@ -10,43 +10,52 @@ dues and history). This repo is an Android/Kotlin+Compose port of an existing
 SwiftUI/iOS app, built against the **same Firebase project** and the **same
 Firestore schema** as that iOS app and an older Flutter app.
 
-Full screen-by-screen/feature-by-feature specs (ported from the iOS app) live in
-a sibling directory: `../android-port/*.md`. Read `00-overview.md` there first;
-`02-data-models.md` documents the Firestore schema and business rules in detail.
+All shared specs live in the sibling directory `../docs/` (see its
+`README.md`). Read `00-overview.md` first; `02-data-models.md` documents the
+Firestore schema, access rules and business rules in detail. Per-feature notes
+cited in code comments (`feature-iap.md`, `feature-properties.md`, …) and the
+`CHANGELOG.md` are there too. The larger Android-only feature specs are in this
+repo's own `docs/`.
 When a doc says a field name, enum raw value, or algorithm "must not change",
 that's a hard constraint — the schema and the `tenantLogin` Cloud Function are
 shared with the other clients and are not this repo's to redesign.
 
 ## Commands
 
-Build and install on a connected device/emulator:
+Three flavors pick the environment: `dev` and `uat` (both
+`com.maskan.mobileapp.dev`, Firestore `maskan-dev` / `maskan-uat`) and `prod`
+(`com.maskan.mobileapp`, `maskan-prod`).
+
+Build and install the Dev app on a connected device/emulator:
 ```
-./gradlew :app:installDebug
+./gradlew :app:installDevDebug
 ```
 
 Run unit tests (`app/src/test`):
 ```
-./gradlew :app:testDebugUnitTest
+./gradlew :app:testDevDebugUnitTest
 ```
 Run a single unit test class:
 ```
-./gradlew :app:testDebugUnitTest --tests "com.maskan.mobileapp.SomeTest"
+./gradlew :app:testDevDebugUnitTest --tests "com.maskan.mobileapp.SomeTest"
 ```
 
 Run instrumented tests (`app/src/androidTest`, needs a connected device/emulator):
 ```
-./gradlew :app:connectedDebugAndroidTest
+./gradlew :app:connectedDevDebugAndroidTest
 ```
 
-Lint / assemble without installing:
+Lint / assemble without installing; production bundle for Play (sign it in
+Android Studio with the upload key in `keystore/`, never committed):
 ```
-./gradlew :app:lint
-./gradlew :app:assembleDebug
+./gradlew :app:lintDevDebug
+./gradlew :app:assembleDevDebug
+./gradlew :app:bundleProdRelease
 ```
 
 Launching and viewing crashes on a running emulator:
 ```
-adb shell am start -n com.maskan.mobileapp/.MainActivity
+adb shell am start -n com.maskan.mobileapp.dev/com.maskan.mobileapp.MainActivity
 adb logcat -d | grep -A 40 "FATAL EXCEPTION"
 ```
 
@@ -126,6 +135,30 @@ Firebase Auth UID back to a `tenants` doc otherwise.
   `dueDate < today && status != "paid"` instead; this was a real bug on iOS.
 - Occupied/vacant state (`properties.occupied`) is only ever mutated by
   assign/move-out/delete flows, never set directly by UI code.
+
+**Security rules are strict — some things must go through Cloud Functions**
+(`Maskan-Firebase`, rules tested in `rules-tests/`):
+- Never write `proOverride`/`proExpiryDate`/`proSource`/`proProductId`. Play
+  purchases go to `verifyPurchase{Env}` (`LandlordRepository.verifyPlayPurchase`),
+  which verifies them with Google Play and writes the Pro fields.
+- Other landlords' profiles can't be read: co-owner invites use
+  `findLandlordByEmail{Env}`, owner/co-owner emails use `landlordEmails{Env}`.
+- Storage uploads must sit under the **current user's** uid
+  (`properties/{env}/{uid}/…`, `tenants/{env}/{uid}/…`); other people open files
+  via the stored `downloadURL`. Deleting a file the user didn't upload fails, so
+  file deletion is best-effort.
+- A tenant may only flag a bill `verifying` — never change its amount (the paid
+  amount goes on the `payments` doc).
+- Callable names take the environment suffix from `CloudFunctionEnv.suffix`.
+
+**Tablets.** `ui/components/AdaptiveLayout.kt` holds the helpers
+(`isExpandedWidth()` ≥ 840dp, `isMediumWidth()` ≥ 600dp, `ReadableRoute`,
+`AdaptiveColumns`, `ListDetailLayout`). On expanded widths the landlord shell
+shows Properties/Tenants/Bills as list beside detail (`ListDetailSplit` in
+`LandlordShellScreen`; list screens take a selection + report their visible ids,
+detail screens take `embedded = true`), dashboards and Settings switch to their
+two-column layouts, and pushed routes are wrapped in `ReadableRoute`. Phones are
+unchanged and locked to portrait; tablets rotate freely (`MainActivity`).
 
 ## Firebase project config
 

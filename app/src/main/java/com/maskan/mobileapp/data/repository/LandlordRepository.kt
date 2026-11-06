@@ -84,7 +84,7 @@ class LandlordRepository(
     }
 
     /**
-     * Registers this device for push (feature_push.md). Unlike iOS's APNs
+     * Registers this device for push (feature-push.md). Unlike iOS's APNs
      * dance, a token is available immediately from Firebase Messaging without
      * waiting for a system permission prompt, so this can run right at
      * session start rather than needing a "cached until sign-in" fallback.

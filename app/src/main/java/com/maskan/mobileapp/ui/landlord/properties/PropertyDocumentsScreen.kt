@@ -63,7 +63,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 /**
- * Full document list/upload screen for a property (feature_documents.md,
+ * Full document list/upload screen for a property (feature-documents.md,
  * mirroring iOS's `PropertyDocumentsView`). Reached from Building Detail's
  * Documents row, scoped to that building's representative flat id — the
  * `properties/{propertyId}/documents` subcollection is per-flat, but a

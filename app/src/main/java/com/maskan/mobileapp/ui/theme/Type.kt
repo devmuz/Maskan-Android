@@ -22,7 +22,7 @@ val PlusJakartaSans = FontFamily(
 )
 
 /**
- * Custom type roles from android-port/01-design-system.md. These don't map
+ * Custom type roles from docs/01-design-system.md. These don't map
  * cleanly onto Material3's default type scale (e.g. "Stat value", "Overline"),
  * so the app reads from this object directly rather than MaterialTheme.typography
  * for most screen-specific text. Sizes track the iOS app's point sizes

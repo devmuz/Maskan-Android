@@ -2,7 +2,7 @@ package com.maskan.mobileapp.ui.theme
 
 import androidx.compose.ui.unit.dp
 
-/** 8-point grid spacing & metrics, from android-port/01-design-system.md. */
+/** 8-point grid spacing & metrics, from docs/01-design-system.md. */
 object MaskanDimens {
     val cornerRadius = 18.dp
     val heroCornerRadius = 28.dp

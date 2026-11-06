@@ -28,7 +28,7 @@ import kotlinx.coroutines.tasks.await
 const val FCM_CHANNEL_ID = "maskan_default"
 
 /**
- * Mirrors iOS's `AppDelegate` FCM bridge (feature_push.md). Landlord tokens
+ * Mirrors iOS's `AppDelegate` FCM bridge (feature-push.md). Landlord tokens
  * are written directly to `landlords/{uid}.fcmToken` (the field
  * `onNewServiceRequest` reads). Tenants can't write their own doc directly
  * (tenants rule requires `landlordId == auth.uid`), so their token goes

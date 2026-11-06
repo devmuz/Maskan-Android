@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * Full adaptive palette, ported 1:1 from the iOS Theme.swift hex values
- * (see android-port/01-design-system.md). Every token below has a light
+ * (see docs/01-design-system.md). Every token below has a light
  * and dark variant except the two "fixed" colors which are intentionally
  * non-adaptive.
  */

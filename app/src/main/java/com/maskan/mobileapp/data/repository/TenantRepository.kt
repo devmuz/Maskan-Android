@@ -43,7 +43,7 @@ data class AssignedTenant(val tenant: Tenant, val temporaryPassword: String)
  * Tenants are matched on **either** `propertyId` or `propertyDocumentId`,
  * merged and de-duped client-side: tenant docs put the property's
  * human-readable code (not the Firestore doc ID) in `propertyId` — required
- * by the `tenantLogin` Cloud Function's query (feature_tenants.md) — and the
+ * by the `tenantLogin` Cloud Function's query (feature-tenants.md) — and the
  * real doc ID in `propertyDocumentId` (`assignTenant` below does this,
  * matching iOS). Older Flutter-era docs predate `propertyDocumentId` and
  * need the one-time `propertyIdCode` lookup fallback instead, so both fields
@@ -150,7 +150,7 @@ class TenantRepository(private val firestore: FirebaseFirestore, private val fun
             hashMapOf(
                 // Must be the human-readable code, not the Firestore doc ID —
                 // the tenantLogin Cloud Function matches on this field
-                // literally (feature_tenants.md: "Always use propertyIdCode
+                // literally (feature-tenants.md: "Always use propertyIdCode
                 // ... in propertyId — that's what the Cloud Function
                 // queries."). The real doc ID goes in propertyDocumentId
                 // instead, same as iOS, so internal lookups still resolve it.
@@ -275,7 +275,7 @@ class TenantRepository(private val firestore: FirebaseFirestore, private val fun
      * SDK), not a direct Firestore write — the tenants rule only allows
      * `landlordId == auth.uid` to update the doc, which a tenant never is.
      * Enables `onNewReminderNotification` to turn a landlord's "Remind"
-     * notification into a real push (feature_push.md).
+     * notification into a real push (feature-push.md).
      */
     suspend fun saveFcmTokenIfAvailable() {
         val token = runCatching { com.google.firebase.messaging.FirebaseMessaging.getInstance().token.await() }.getOrNull() ?: return

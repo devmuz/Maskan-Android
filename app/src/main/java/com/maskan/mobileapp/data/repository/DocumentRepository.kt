@@ -31,7 +31,7 @@ class DocumentTooLargeException : Exception("File is too large. Maximum size is 
 
 /**
  * `properties/{propertyId}/documents` subcollection + Storage at
- * `properties/{propertyId}/documents/{uuid}_{filename}` (feature_documents.md).
+ * `properties/{env}/{uploaderUid}/documents/{propertyId}/{uuid}_{filename}` (feature-documents.md).
  * Not a shared session-scoped service — screens create their own instance and
  * start/stop it per propertyId, mirroring iOS's `DocumentService` (which is a
  * `@StateObject` owned by `PropertyDocumentsView`, not injected from the shell).

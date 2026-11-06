@@ -33,7 +33,7 @@ data class Tenant(
     /**
      * Written server-side only, via the `saveTenantFcmToken` Cloud
      * Function — the tenants security rule doesn't let a tenant update
-     * their own doc directly (feature_push.md).
+     * their own doc directly (feature-push.md).
      */
     val fcmToken: String? = null,
     @get:PropertyName("identityDocumentType") @set:PropertyName("identityDocumentType")

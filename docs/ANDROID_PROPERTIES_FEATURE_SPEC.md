@@ -35,7 +35,7 @@ Source of truth: iOS codebase at time of writing (branch `development`, after co
 | `houseTaxNumber` | String | no | Optional |
 | `waterTaxNumber` | String | no | Optional |
 | `photoUrl` | String (URL) | no | Firebase Storage download URL, shared across all flats in a building |
-| `coOwners` | List<String> (UIDs) | no | Max 7 |
+| `coOwners` | List<String> (UIDs) | no | Max 5 (Pro; 1 on the free plan) |
 | `currency` | String (3-letter ISO code) | no | Stamped from landlord's currency at creation time (see §9) |
 | `isDeleted` | Bool | no | Soft-delete flag |
 | `deletedAt` | Timestamp (server) | no | Set on soft delete |
@@ -237,7 +237,7 @@ Fields: Unit name (required), Monthly rent (required, `> 0`), Property ID (see �
 
 ### 6.7 Co-owner management (Building Detail only)
 
-- **Add**: owner enters an email; system looks up an existing landlord account by that email. Failure cases (all must be surfaced as distinct, user-facing errors): no account found for that email; email belongs to the current owner (can't add self); already a co-owner; building already has 7 co-owners (hard cap). On success, the UID is appended to `coOwners` on **every flat** in the building (batch).
+- **Add**: owner enters an email; the `findLandlordByEmail{Env}` Cloud Function resolves it to an existing landlord account (profiles are private, so the app can't query `landlords` itself). Co-owner and owner emails shown on Building Detail come from `landlordEmails{Env}`. Failure cases (all must be surfaced as distinct, user-facing errors): no account found for that email; email belongs to the current owner (can't add self); already a co-owner; building already has 5 co-owners (hard cap; 1 on the free plan). On success, the UID is appended to `coOwners` on **every flat** in the building (batch).
 - **Remove**: owner removes a specific co-owner, confirmation required, batch-removed from every flat's `coOwners`.
 - **Leave**: a co-owner (not the owner) removes themself from the building via a "Leave Building" action on Building Detail, same batch removal, no confirmation-target choice (self only).
 
@@ -299,7 +299,7 @@ In plain terms: **the oldest N buildings** (N = free limit = 1) a landlord has e
 
 **Pro status resolution**, in priority order:
 1. An admin override flag on the landlord's profile (`proOverride == true`) — grants Pro with no expiry, no purchase needed.
-2. An active native in-app subscription entitlement (monthly or yearly SKU) checked directly against the platform's billing library — authoritative on that platform. On a successful check, the resulting expiry date and a `proSource` tag (this platform's identifier) are written back to the landlord's profile so the **other platform** can cross-read it.
+2. An active native in-app subscription entitlement (monthly or yearly SKU) checked directly against the platform's billing library — authoritative on that platform. The purchase is then sent to the `verifyPurchase{Env}` Cloud Function (Play purchase token / StoreKit signed transaction), which verifies it with Google/Apple and writes `proExpiryDate`, `proSource` and `proProductId` so the **other platform** can cross-read it. Apps never write these fields — the Firestore rules reject it.
 3. Fallback: a `proExpiryDate` field on the landlord profile in the future — this is how a purchase made on the **other platform** (e.g., Android reading an iOS purchase, or vice versa) is honored.
 - Pro status must update **live** (realtime listener on the landlord profile document), without requiring an app restart — e.g. an admin grant or a purchase on the other platform should unlock instantly.
 
@@ -335,7 +335,7 @@ Both properties and tenants are **soft-deleted**, never hard-deleted, specifical
 - Optional, set only at creation time via the Add Property form (gallery picker, no camera-capture option observed).
 - **No re-upload/replace option** in the Edit form — once set, only changeable by... (no path found on iOS; treat as create-time-only for parity).
 - Client-side compression before upload: resized to max **300pt width**, JPEG quality **0.7**.
-- Storage path pattern: `properties/{landlordId}/{randomId}.jpg`.
+- Storage path pattern: `properties/{env}/{uploaderUid}/{randomId}.jpg` (the uploader's own folder — Storage rules allow nothing else).
 - **Upload happens in the background, after** the property document(s) are already created and visible — property creation does not block on photo upload. While uploading, the building's list row shows "Uploading photo…" with a spinner in place of the occupied-count text. On failure, a dedicated alert notifies the user, but the property itself remains created/usable.
 
 ### 11.2 Property documents (separate feature, see §7)
@@ -411,7 +411,7 @@ Paywall is reachable as a modal from every gated action above (Add building, Add
 | Monthly rent | Required, numeric, `> 0` |
 | Unit name | Required only when a building has more than one flat; optional/blank allowed for a single flat |
 | Property ID code | Min 4 characters; globally unique (server-checked); auto-uppercased; letters+digits only when manually edited |
-| Co-owner email | Must match an existing landlord account; not self; not already a co-owner; max 7 co-owners per building |
+| Co-owner email | Must match an existing landlord account; not self; not already a co-owner; max 5 co-owners per building |
 | Delete single flat | Blocked while `occupied == true` |
 | Delete whole building | Blocked unless every flat in the building is vacant |
 

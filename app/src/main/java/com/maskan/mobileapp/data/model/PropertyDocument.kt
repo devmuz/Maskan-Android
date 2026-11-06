@@ -6,7 +6,7 @@ import com.google.firebase.firestore.ServerTimestamp
 import java.util.Date
 
 /**
- * `properties/{propertyId}/documents` subcollection (feature_documents.md /
+ * `properties/{propertyId}/documents` subcollection (feature-documents.md /
  * 02-data-models.md) — metadata for a file uploaded to Firebase Storage and
  * linked to a property.
  */
