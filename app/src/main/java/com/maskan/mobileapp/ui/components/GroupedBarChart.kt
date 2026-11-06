@@ -21,6 +21,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.maskan.mobileapp.ui.theme.MaskanTheme
 import com.maskan.mobileapp.ui.theme.MaskanType
@@ -37,12 +38,14 @@ fun GroupedBarChart(
     colorA: Color,
     colorB: Color,
     modifier: Modifier = Modifier,
+    height: Dp = 220.dp,
 ) {
     val colors = MaskanTheme.colors
     val niceMax = niceMax(max(seriesA.maxOrNull() ?: 0.0, seriesB.maxOrNull() ?: 0.0))
-    val gridSteps = 3 // -> 4 labels: 0, 1/3, 2/3, max
+    // Quarters: niceMax is 1, 2, 5 or 10 × a power of ten, so every label is a round number.
+    val gridSteps = 4 // -> 5 labels: 0, 1/4, 1/2, 3/4, max
 
-    Row(modifier = modifier.fillMaxWidth().height(220.dp)) {
+    Row(modifier = modifier.fillMaxWidth().height(height)) {
         Column(
             modifier = Modifier.fillMaxHeight().padding(end = 8.dp),
             verticalArrangement = Arrangement.SpaceBetween,

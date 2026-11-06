@@ -5,6 +5,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import java.util.Date
+import com.maskan.mobileapp.data.model.Payment
+import com.maskan.mobileapp.ui.components.isExpandedWidth
+import com.maskan.mobileapp.ui.components.AdaptiveColumns
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -89,6 +97,8 @@ fun TenantHomeScreen(
     val requests by viewModel.requests.collectAsStateWithLifecycle()
     val totalDue by viewModel.totalDue.collectAsStateWithLifecycle()
     val currencyCode by viewModel.currencyCode.collectAsStateWithLifecycle()
+    val payments by viewModel.payments.collectAsStateWithLifecycle()
+    val expanded = isExpandedWidth()
     val moveInFormat = remember { SimpleDateFormat("d MMMM yyyy", Locale.getDefault()) }
 
     val title = tenant?.name?.trim()?.takeIf { it.isNotBlank() }?.split(" ")?.firstOrNull()
@@ -97,6 +107,114 @@ fun TenantHomeScreen(
     val nothingAtAll = pendingBills.isEmpty() && paidBills.isEmpty() && requests.isEmpty()
     // Oldest rent bill (real or synthesized) the tenant can still report paying.
     val payableRentBill = pendingBills.firstOrNull { it.type == BillType.RENT && it.status != BillStatus.VERIFYING }
+
+    val heroCard: @Composable (Modifier) -> Unit = { modifier ->
+        Column(
+            modifier = modifier
+                .background(colors.primaryGradient, RoundedCornerShape(MaskanDimens.cornerRadius))
+                .padding(MaskanDimens.cardPadding),
+        ) {
+            if (expanded) {
+                Text(text = "TOTAL DUE", style = MaskanType.overline, color = Color.White.copy(alpha = 0.7f), modifier = Modifier.padding(bottom = 4.dp))
+            }
+            Text(
+                text = if (totalDue > 0) AmountFormatter.format(totalDue, currencyCode) else "$currencyCode 0.00",
+                style = MaskanType.screenTitle,
+                color = Color.White,
+            )
+            Row(
+                modifier = Modifier.padding(top = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    imageVector = if (pendingBills.isEmpty()) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.9f),
+                    modifier = Modifier.height(16.dp),
+                )
+                Text(
+                    text = if (pendingBills.isEmpty()) "No pending dues" else "${pendingBills.size} bill${if (pendingBills.size == 1) "" else "s"} outstanding",
+                    style = MaskanType.secondary,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+            payableRentBill?.let { rentBill ->
+                Row(
+                    modifier = Modifier
+                        .padding(top = 12.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.White)
+                        .clickable { onBillClick(rentBill.id) }
+                        .padding(horizontal = 16.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = colors.gradientStart, modifier = Modifier.size(18.dp))
+                    Text(text = "I've Paid Rent", style = MaskanType.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), color = colors.gradientStart)
+                }
+            }
+            if (expanded) {
+                Spacer(modifier = Modifier.weight(1f).heightIn(min = 16.dp))
+                HeroFacts(
+                    nextDue = pendingBills.mapNotNull { it.dueDate }.minOrNull(),
+                    rentDueDay = tenant?.rentDueDay,
+                    moveInDate = tenant?.moveInDate,
+                    lastPayment = payments.filter { it.paidDate != null }.maxByOrNull { it.paidDate!! },
+                    currencyCode = currencyCode,
+                )
+            }
+        }
+    }
+    val propertyCard: @Composable (Modifier) -> Unit = { modifier ->
+        if (property != null) {
+            val prop = property!!
+            MaskanCard(modifier = modifier, contentPadding = PaddingValues(0.dp)) {
+                if (!prop.photoUrl.isNullOrBlank()) {
+                    PropertyPhoto(
+                        url = prop.photoUrl!!,
+                        modifier = Modifier.fillMaxWidth().height(168.dp).clip(RoundedCornerShape(topStart = MaskanDimens.cornerRadius, topEnd = MaskanDimens.cornerRadius)),
+                    )
+                }
+                Column(modifier = Modifier.padding(MaskanDimens.cardPadding)) {
+                    Text(
+                        text = if (prop.unit.isNotBlank()) "${prop.displayBuildingName} · ${prop.unit}" else prop.displayBuildingName,
+                        style = MaskanType.cardTitle,
+                        color = colors.textPrimary,
+                    )
+                    Row(
+                        modifier = Modifier.padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(Icons.Filled.LocationOn, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.height(14.dp))
+                        Text(text = prop.address, style = MaskanType.secondary, color = colors.textSecondary)
+                    }
+                    HorizontalDivider(color = colors.border, modifier = Modifier.padding(vertical = 12.dp))
+                    val metrics = buildList {
+                        add(Triple(Icons.Filled.Payments as ImageVector, "Monthly Rent", AmountFormatter.format(prop.monthlyRent, currencyCode)))
+                        add(Triple(Icons.Filled.Tag as ImageVector, "Property ID", prop.propertyIdCode))
+                        prop.propertyType?.let { add(Triple(Icons.Filled.Apartment as ImageVector, "Property Type", it.label)) }
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        metrics.forEachIndexed { index, (icon, label, value) ->
+                            MetricCell(icon = icon, label = label, value = value, modifier = Modifier.weight(1f))
+                            if (index < metrics.lastIndex) {
+                                Box(modifier = Modifier.width(1.dp).height(40.dp).background(colors.border))
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (tenant != null) {
+            MaskanCard(modifier = modifier, subtle = true) {
+                Text(text = tenant!!.propertyIdCode, style = MaskanType.bodyMedium, color = colors.textPrimary)
+                tenant!!.moveInDate?.let {
+                    Text(text = "Move-in: ${moveInFormat.format(it)}", style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
+                }
+            }
+        }
+    }
 
     Scaffold(
         containerColor = colors.background,
@@ -122,99 +240,18 @@ fun TenantHomeScreen(
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = MaskanDimens.screenHPadding),
                 verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
             ) {
-                // 1. Hero card
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(colors.primaryGradient, RoundedCornerShape(MaskanDimens.cornerRadius))
-                        .padding(MaskanDimens.cardPadding),
-                ) {
-                    Text(
-                        text = if (totalDue > 0) AmountFormatter.format(totalDue, currencyCode) else "$currencyCode 0.00",
-                        style = MaskanType.screenTitle,
-                        color = Color.White,
-                    )
+                // 1–2. Hero + property card: side by side at equal height on tablets.
+                if (expanded) {
                     Row(
-                        modifier = Modifier.padding(top = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Icon(
-                            imageVector = if (pendingBills.isEmpty()) Icons.Filled.CheckCircle else Icons.Filled.Warning,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.9f),
-                            modifier = Modifier.height(16.dp),
-                        )
-                        Text(
-                            text = if (pendingBills.isEmpty()) "No pending dues" else "${pendingBills.size} bill${if (pendingBills.size == 1) "" else "s"} outstanding",
-                            style = MaskanType.secondary,
-                            color = Color.White.copy(alpha = 0.9f),
-                        )
+                        heroCard(Modifier.weight(1f).fillMaxHeight())
+                        propertyCard(Modifier.weight(1f).fillMaxHeight())
                     }
-                    payableRentBill?.let { rentBill ->
-                        Row(
-                            modifier = Modifier
-                                .padding(top = 12.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(Color.White)
-                                .clickable { onBillClick(rentBill.id) }
-                                .padding(horizontal = 16.dp, vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = colors.gradientStart, modifier = Modifier.size(18.dp))
-                            Text(text = "I've Paid Rent", style = MaskanType.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), color = colors.gradientStart)
-                        }
-                    }
-                }
-
-                // 2. Property card
-                if (property != null) {
-                    val prop = property!!
-                    MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
-                        if (!prop.photoUrl.isNullOrBlank()) {
-                            PropertyPhoto(
-                                url = prop.photoUrl!!,
-                                modifier = Modifier.fillMaxWidth().height(168.dp).clip(RoundedCornerShape(topStart = MaskanDimens.cornerRadius, topEnd = MaskanDimens.cornerRadius)),
-                            )
-                        }
-                        Column(modifier = Modifier.padding(MaskanDimens.cardPadding)) {
-                            Text(
-                                text = if (prop.unit.isNotBlank()) "${prop.displayBuildingName} · ${prop.unit}" else prop.displayBuildingName,
-                                style = MaskanType.cardTitle,
-                                color = colors.textPrimary,
-                            )
-                            Row(
-                                modifier = Modifier.padding(top = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Icon(Icons.Filled.LocationOn, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.height(14.dp))
-                                Text(text = prop.address, style = MaskanType.secondary, color = colors.textSecondary)
-                            }
-                            HorizontalDivider(color = colors.border, modifier = Modifier.padding(vertical = 12.dp))
-                            val metrics = buildList {
-                                add(Triple(Icons.Filled.Payments as ImageVector, "Monthly Rent", AmountFormatter.format(prop.monthlyRent, currencyCode)))
-                                add(Triple(Icons.Filled.Tag as ImageVector, "Property ID", prop.propertyIdCode))
-                                prop.propertyType?.let { add(Triple(Icons.Filled.Apartment as ImageVector, "Property Type", it.label)) }
-                            }
-                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                metrics.forEachIndexed { index, (icon, label, value) ->
-                                    MetricCell(icon = icon, label = label, value = value, modifier = Modifier.weight(1f))
-                                    if (index < metrics.lastIndex) {
-                                        Box(modifier = Modifier.width(1.dp).height(40.dp).background(colors.border))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else if (tenant != null) {
-                    MaskanCard(modifier = Modifier.fillMaxWidth(), subtle = true) {
-                        Text(text = tenant!!.propertyIdCode, style = MaskanType.bodyMedium, color = colors.textPrimary)
-                        tenant!!.moveInDate?.let {
-                            Text(text = "Move-in: ${moveInFormat.format(it)}", style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
-                        }
-                    }
+                } else {
+                    heroCard(Modifier.fillMaxWidth())
+                    propertyCard(Modifier.fillMaxWidth())
                 }
 
                 if (billsError != null) {
@@ -238,58 +275,61 @@ fun TenantHomeScreen(
                         message = "No pending bills or dues at the moment.",
                     )
                 } else {
-                    // 3. Outstanding Bills
-                    if (pendingBills.isNotEmpty()) {
-                        MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "Outstanding Bills", style = MaskanType.cardTitle, color = colors.textPrimary)
-                                StatusBadge(text = "${pendingBills.size}", color = colors.danger)
-                            }
-                            pendingBills.forEach { bill ->
-                                BillRow(bill = bill, currencyCode = currencyCode, onClick = { onBillClick(bill.id) })
-                            }
-                        }
-                    }
-
-                    // 4. Recent Payments
-                    if (paidBills.isNotEmpty()) {
-                        MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "RECENT PAYMENTS", style = MaskanType.overline, color = colors.textSecondary)
-                                if (paidBills.size > 5) {
-                                    Text(
-                                        text = "View All",
-                                        style = MaskanType.secondary.copy(fontWeight = FontWeight.SemiBold),
-                                        color = colors.gradientStart,
-                                        modifier = Modifier.clickableNoRipple(onOpenHistory),
-                                    )
+                    // 3–5. Bills and payments, then requests — two columns on tablets.
+                    AdaptiveColumns(spacing = MaskanDimens.sectionSpacing, leading = {
+                        // 3. Outstanding Bills
+                        if (pendingBills.isNotEmpty()) {
+                            MaskanCard(modifier = Modifier.fillMaxWidth()) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Text(text = "Outstanding Bills", style = MaskanType.cardTitle, color = colors.textPrimary)
+                                    StatusBadge(text = "${pendingBills.size}", color = colors.danger)
+                                }
+                                pendingBills.forEach { bill ->
+                                    BillRow(bill = bill, currencyCode = currencyCode, onClick = { onBillClick(bill.id) })
                                 }
                             }
-                            paidBills.take(5).forEach { bill ->
-                                BillRow(bill = bill, currencyCode = currencyCode, onClick = { onBillClick(bill.id) })
-                            }
                         }
-                    }
 
-                    // 5. My Requests
-                    if (requests.isNotEmpty()) {
-                        MaskanCard(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "MY REQUESTS", style = MaskanType.overline, color = colors.textSecondary)
-                                if (requests.size > 3) {
-                                    Text(
-                                        text = "View All",
-                                        style = MaskanType.secondary.copy(fontWeight = FontWeight.SemiBold),
-                                        color = colors.gradientStart,
-                                        modifier = Modifier.clickableNoRipple(onOpenRequests),
-                                    )
+                        // 4. Recent Payments
+                        if (paidBills.isNotEmpty()) {
+                            MaskanCard(modifier = Modifier.fillMaxWidth()) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Text(text = "RECENT PAYMENTS", style = MaskanType.overline, color = colors.textSecondary)
+                                    if (paidBills.size > 5) {
+                                        Text(
+                                            text = "View All",
+                                            style = MaskanType.secondary.copy(fontWeight = FontWeight.SemiBold),
+                                            color = colors.gradientStart,
+                                            modifier = Modifier.clickableNoRipple(onOpenHistory),
+                                        )
+                                    }
+                                }
+                                paidBills.take(5).forEach { bill ->
+                                    BillRow(bill = bill, currencyCode = currencyCode, onClick = { onBillClick(bill.id) })
                                 }
                             }
-                            requests.take(3).forEach { request ->
-                                RequestRow(request = request, modifier = Modifier.clickable { onRequestClick(request.id) })
+                        }
+                    }, trailing = {
+                        // 5. My Requests
+                        if (requests.isNotEmpty()) {
+                            MaskanCard(modifier = Modifier.fillMaxWidth()) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Text(text = "MY REQUESTS", style = MaskanType.overline, color = colors.textSecondary)
+                                    if (requests.size > 3) {
+                                        Text(
+                                            text = "View All",
+                                            style = MaskanType.secondary.copy(fontWeight = FontWeight.SemiBold),
+                                            color = colors.gradientStart,
+                                            modifier = Modifier.clickableNoRipple(onOpenRequests),
+                                        )
+                                    }
+                                }
+                                requests.take(3).forEach { request ->
+                                    RequestRow(request = request, modifier = Modifier.clickable { onRequestClick(request.id) })
+                                }
                             }
                         }
-                    }
+                    })
                 }
 
                 // Extra bottom spacing so content doesn't sit under the FAB.
@@ -311,6 +351,48 @@ fun TenantHomeScreen(
             },
         )
     }
+}
+
+/** Tablet: key dates along the bottom of the hero card (iOS heroFacts). */
+@Composable
+private fun HeroFacts(nextDue: Date?, rentDueDay: Int?, moveInDate: Date?, lastPayment: Payment?, currencyCode: String) {
+    val dayMonth = remember { SimpleDateFormat("d MMM", Locale.getDefault()) }
+    val monthYear = remember { SimpleDateFormat("MMM yyyy", Locale.getDefault()) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White.copy(alpha = 0.12f))
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HeroFact("Next Due", nextDue?.let { dayMonth.format(it) } ?: "—", Modifier.weight(1f))
+        HeroFactDivider()
+        if (rentDueDay != null) {
+            HeroFact("Rent Due", "Day $rentDueDay monthly", Modifier.weight(1f))
+        } else {
+            HeroFact("Tenant Since", moveInDate?.let { monthYear.format(it) } ?: "—", Modifier.weight(1f))
+        }
+        HeroFactDivider()
+        HeroFact(
+            "Last Paid",
+            lastPayment?.let { "${AmountFormatter.format(it.amount, currencyCode)} · ${dayMonth.format(it.paidDate!!)}" } ?: "—",
+            Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun HeroFact(title: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.padding(horizontal = 14.dp)) {
+        Text(text = title, style = MaskanType.caption, color = Color.White.copy(alpha = 0.7f))
+        Text(text = value, style = MaskanType.bodyMedium, color = Color.White, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
+@Composable
+private fun HeroFactDivider() {
+    Box(modifier = Modifier.width(1.dp).height(36.dp).background(Color.White.copy(alpha = 0.25f)))
 }
 
 @Composable

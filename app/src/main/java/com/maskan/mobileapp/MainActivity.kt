@@ -2,6 +2,7 @@ package com.maskan.mobileapp
 
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -35,6 +36,12 @@ import com.maskan.mobileapp.ui.theme.MaskanTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The manifest locks phones to portrait. Tablets (smallest width ≥ 600dp)
+        // rotate freely and get the tablet layouts; Android 16+ ignores the
+        // portrait lock there anyway for apps targeting SDK 36+.
+        if (resources.configuration.smallestScreenWidthDp >= 600) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+        }
         enableEdgeToEdge()
         val container = (application as MaskanApplication).container
         setContent {

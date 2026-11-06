@@ -1,6 +1,14 @@
 package com.maskan.mobileapp.ui.landlord.dashboard
 
 import androidx.compose.foundation.background
+import com.maskan.mobileapp.ui.components.isExpandedWidth
+import androidx.compose.material.icons.filled.PersonAddAlt1
+import androidx.compose.material.icons.filled.NoteAdd
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -88,7 +96,10 @@ fun DashboardScreen(
 
     val overdue = remember(bills) { overdueBills(bills, today) }
     val upcoming = remember(bills) { upcomingBills(bills, today) }
-    val chartBuckets = remember(bills, payments) { chartBuckets(bills, payments) }
+    // Tablets in landscape get the iPad layout and a full year in the chart.
+    val expanded = isExpandedWidth()
+    val chartMonths = if (expanded) 12 else 6
+    val chartBuckets = remember(bills, payments, chartMonths) { chartBuckets(bills, payments, monthCount = chartMonths) }
     val propertiesById = remember(properties) { properties.associateBy { it.id } }
     val fallbackCurrencyCode = landlord?.preferredCurrency ?: "USD"
 
@@ -158,111 +169,236 @@ fun DashboardScreen(
                 }
             }
 
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(colors.primaryGradient, RoundedCornerShape(MaskanDimens.cornerRadius))
-                        .padding(MaskanDimens.cardPadding),
-                ) {
-                    Text(text = "Everything, at a glance", style = MaskanType.cardTitle.copy(fontSize = 20.sp), color = Color.White)
-                    Text(
-                        text = "Occupancy, dues, and activity across every property you manage.",
-                        style = MaskanType.secondary,
-                        color = Color.White.copy(alpha = 0.85f),
-                        modifier = Modifier.padding(top = 6.dp),
-                    )
+            if (expanded) {
+                // Top: hero beside the three stats (equal height).
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        WelcomeCard(large = true, modifier = Modifier.weight(1f).fillMaxHeight())
+                        statCards.forEach { card ->
+                            TallStatCard(card, modifier = Modifier.width(168.dp).fillMaxHeight())
+                        }
+                    }
                 }
-            }
-
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(MaskanDimens.itemSpacing), modifier = Modifier.fillMaxWidth()) {
-                    QuickActionButton("Add Tenant", Modifier.weight(1f), onAddTenant)
-                    QuickActionButton("Add Bill", Modifier.weight(1f), onAddBill)
-                    QuickActionButton("Record Payment", Modifier.weight(1f), onRecordPayment)
+                // Middle: a large chart beside what needs attention.
+                item {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                        RevenueChartCard(chartBuckets, chartMonths, large = true, modifier = Modifier.weight(1f))
+                        Column(modifier = Modifier.width(420.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                            if (overdue.isNotEmpty()) {
+                                BillListCard(
+                                    title = "Overdue",
+                                    subtitle = "Needs immediate attention",
+                                    icon = Icons.Filled.Warning,
+                                    iconTint = colors.danger,
+                                    accentColor = colors.danger,
+                                    bills = overdue,
+                                    propertiesById = propertiesById,
+                                    today = today,
+                                    moreLabel = "more overdue",
+                                    fallbackCurrencyCode = fallbackCurrencyCode,
+                                    onBillClick = onBillClick,
+                                )
+                            }
+                            BillListCard(
+                                title = "Upcoming Bills",
+                                subtitle = "Due in the next 7 days",
+                                icon = Icons.Filled.CalendarMonth,
+                                iconTint = colors.gradientStart,
+                                accentColor = null,
+                                bills = upcoming,
+                                propertiesById = propertiesById,
+                                today = today,
+                                moreLabel = "more due soon",
+                                fallbackCurrencyCode = fallbackCurrencyCode,
+                                onBillClick = onBillClick,
+                                emptyMessage = "Nothing due in the next 7 days.",
+                            )
+                        }
+                    }
                 }
-            }
+                // Bottom: large quick actions.
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxWidth()) {
+                        QuickActionButton("Add Tenant", Modifier.weight(1f), Icons.Filled.PersonAddAlt1, large = true, onClick = onAddTenant)
+                        QuickActionButton("Add Bill", Modifier.weight(1f), Icons.Filled.NoteAdd, large = true, onClick = onAddBill)
+                        QuickActionButton("Record Payment", Modifier.weight(1f), Icons.Filled.CreditCard, large = true, onClick = onRecordPayment)
+                    }
+                }
+            } else {
+                item { WelcomeCard(large = false, modifier = Modifier.fillMaxWidth()) }
 
-            item {
-                MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                    Text(text = "Collected vs. Expense", style = MaskanType.cardTitle, color = colors.textPrimary)
-                    Text(
-                        text = "Last 6 months, across your whole portfolio",
-                        style = MaskanType.secondary,
-                        color = colors.textSecondary,
-                        modifier = Modifier.padding(top = 2.dp, bottom = 16.dp),
-                    )
-                    if (chartBuckets.all { it.collected == 0.0 && it.expense == 0.0 }) {
-                        Text(text = "No rent or bills recorded yet.", style = MaskanType.message, color = colors.textSecondary)
-                    } else {
-                        GroupedBarChart(
-                            labels = chartBuckets.map { it.label },
-                            seriesA = chartBuckets.map { it.collected },
-                            seriesB = chartBuckets.map { it.expense },
-                            colorA = colors.gold,
-                            colorB = colors.gradientStart,
-                        )
-                        ChartLegend(
-                            entries = listOf("Collected" to colors.gold, "Expense" to colors.gradientStart),
-                            modifier = Modifier.padding(top = 12.dp),
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(MaskanDimens.itemSpacing), modifier = Modifier.fillMaxWidth()) {
+                        QuickActionButton("Add Tenant", Modifier.weight(1f), onClick = onAddTenant)
+                        QuickActionButton("Add Bill", Modifier.weight(1f), onClick = onAddBill)
+                        QuickActionButton("Record Payment", Modifier.weight(1f), onClick = onRecordPayment)
+                    }
+                }
+
+                item { RevenueChartCard(chartBuckets, chartMonths, large = false, modifier = Modifier.fillMaxWidth()) }
+
+                item { StatCardGrid(statCards) }
+
+                if (overdue.isNotEmpty()) {
+                    item {
+                        BillListCard(
+                            title = "Overdue",
+                            subtitle = "Needs immediate attention",
+                            icon = Icons.Filled.Warning,
+                            iconTint = colors.danger,
+                            accentColor = colors.danger,
+                            bills = overdue,
+                            propertiesById = propertiesById,
+                            today = today,
+                            moreLabel = "more overdue",
+                            fallbackCurrencyCode = fallbackCurrencyCode,
+                            onBillClick = onBillClick,
                         )
                     }
                 }
-            }
 
-            item { StatCardGrid(statCards) }
-
-            if (overdue.isNotEmpty()) {
                 item {
                     BillListCard(
-                        title = "Overdue",
-                        subtitle = "Needs immediate attention",
-                        icon = Icons.Filled.Warning,
-                        iconTint = colors.danger,
-                        accentColor = colors.danger,
-                        bills = overdue,
+                        title = "Upcoming Bills",
+                        subtitle = "Due in the next 7 days",
+                        icon = Icons.Filled.CalendarMonth,
+                        iconTint = colors.gradientStart,
+                        accentColor = null,
+                        bills = upcoming,
                         propertiesById = propertiesById,
                         today = today,
-                        moreLabel = "more overdue",
+                        moreLabel = "more due soon",
                         fallbackCurrencyCode = fallbackCurrencyCode,
                         onBillClick = onBillClick,
+                        emptyMessage = "Nothing due in the next 7 days.",
                     )
                 }
-            }
-
-            item {
-                BillListCard(
-                    title = "Upcoming Bills",
-                    subtitle = "Due in the next 7 days",
-                    icon = Icons.Filled.CalendarMonth,
-                    iconTint = colors.gradientStart,
-                    accentColor = null,
-                    bills = upcoming,
-                    propertiesById = propertiesById,
-                    today = today,
-                    moreLabel = "more due soon",
-                    fallbackCurrencyCode = fallbackCurrencyCode,
-                    onBillClick = onBillClick,
-                    emptyMessage = "Nothing due in the next 7 days.",
-                )
             }
         }
     }
 }
 
+/** Tablet ([large]): taller, with the title at the bottom in larger type. */
 @Composable
-private fun QuickActionButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun WelcomeCard(large: Boolean, modifier: Modifier = Modifier) {
     val colors = MaskanTheme.colors
-    Box(
+    Column(
         modifier = modifier
-            .height(40.dp)
+            .then(if (large) Modifier.heightIn(min = 220.dp) else Modifier)
+            .background(colors.primaryGradient, RoundedCornerShape(if (large) MaskanDimens.heroCornerRadius else MaskanDimens.cornerRadius))
+            .padding(if (large) 30.dp else MaskanDimens.cardPadding),
+        verticalArrangement = if (large) Arrangement.Bottom else Arrangement.Top,
+    ) {
+        Text(
+            text = "Everything, at a glance",
+            style = if (large) MaskanType.cardTitle.copy(fontSize = 32.sp, lineHeight = 38.sp) else MaskanType.cardTitle.copy(fontSize = 20.sp),
+            color = Color.White,
+        )
+        Text(
+            text = "Occupancy, dues, and activity across every property you manage.",
+            style = if (large) MaskanType.body.copy(fontSize = 17.sp, lineHeight = 24.sp) else MaskanType.secondary,
+            color = Color.White.copy(alpha = 0.85f),
+            modifier = Modifier.padding(top = 6.dp),
+        )
+    }
+}
+
+@Composable
+private fun RevenueChartCard(buckets: List<MonthBucket>, months: Int, large: Boolean, modifier: Modifier = Modifier) {
+    val colors = MaskanTheme.colors
+    MaskanCard(modifier = modifier.then(if (large) Modifier.heightIn(min = 380.dp) else Modifier)) {
+        Text(text = "Collected vs. Expense", style = MaskanType.cardTitle, color = colors.textPrimary)
+        Text(
+            text = "Last $months months, across your whole portfolio",
+            style = MaskanType.secondary,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(top = 2.dp, bottom = 16.dp),
+        )
+        if (buckets.all { it.collected == 0.0 && it.expense == 0.0 }) {
+            if (large) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().height(300.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(Icons.Filled.BarChart, contentDescription = null, tint = colors.textSecondary.copy(alpha = 0.6f), modifier = Modifier.size(40.dp))
+                    Text(text = "No rent or bills recorded yet.", style = MaskanType.body, color = colors.textSecondary, modifier = Modifier.padding(top = 12.dp))
+                }
+            } else {
+                Text(text = "No rent or bills recorded yet.", style = MaskanType.message, color = colors.textSecondary)
+            }
+        } else {
+            GroupedBarChart(
+                labels = buckets.map { it.label },
+                seriesA = buckets.map { it.collected },
+                seriesB = buckets.map { it.expense },
+                colorA = colors.gold,
+                colorB = colors.gradientStart,
+                height = if (large) 300.dp else 220.dp,
+            )
+            ChartLegend(
+                entries = listOf("Collected" to colors.gold, "Expense" to colors.gradientStart),
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
+    }
+}
+
+/** Tablet stat tile: stretches to its row's height, with a larger value. */
+@Composable
+private fun TallStatCard(data: StatCardData, modifier: Modifier = Modifier) {
+    val colors = MaskanTheme.colors
+    MaskanCard(modifier = modifier, contentPadding = PaddingValues(16.dp)) {
+        Column(modifier = Modifier.fillMaxHeight()) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(MaskanDimens.statBadgeSize)
+                        .background(data.tint.copy(alpha = 0.14f), RoundedCornerShape(MaskanDimens.statBadgeCornerRadius)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(imageVector = data.icon, contentDescription = null, tint = data.tint, modifier = Modifier.size(16.dp))
+                }
+                Text(text = data.value, style = MaskanType.statValue.copy(fontSize = 34.sp, lineHeight = 40.sp), color = colors.textPrimary)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Text(text = data.label, style = MaskanType.secondary.copy(fontSize = 14.sp), color = colors.textSecondary)
+        }
+    }
+}
+
+/** Tablet ([large]): taller, with an icon and a larger label. */
+@Composable
+private fun QuickActionButton(
+    text: String,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    large: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val colors = MaskanTheme.colors
+    Row(
+        modifier = modifier
+            .height(if (large) 64.dp else 40.dp)
             .clip(RoundedCornerShape(50))
             .background(colors.surface)
             .border(1.dp, colors.border, RoundedCornerShape(50))
             .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = text, style = MaskanType.caption, color = colors.textPrimary)
+        if (large && icon != null) {
+            Icon(icon, contentDescription = null, tint = colors.gradientStart, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(10.dp))
+        }
+        Text(
+            text = text,
+            style = if (large) MaskanType.bodyMedium.copy(fontSize = 16.sp) else MaskanType.caption,
+            color = colors.textPrimary,
+        )
     }
 }
 

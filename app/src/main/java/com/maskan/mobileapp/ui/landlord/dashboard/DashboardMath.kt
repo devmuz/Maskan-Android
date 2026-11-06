@@ -57,8 +57,13 @@ data class MonthBucket(val label: String, val collected: Double, val expense: Do
  * tenant-paid bills as expenses — `paidBy` is the only correct signal
  * (04-landlord-dashboard.md). Bucketing uses calendar month+year equality.
  */
-fun chartBuckets(bills: List<Bill>, payments: List<Payment>, referenceMonth: YearMonth = YearMonth.now()): List<MonthBucket> {
-    val months = (5 downTo 0).map { referenceMonth.minusMonths(it.toLong()) }
+fun chartBuckets(
+    bills: List<Bill>,
+    payments: List<Payment>,
+    referenceMonth: YearMonth = YearMonth.now(),
+    monthCount: Int = 6,
+): List<MonthBucket> {
+    val months = (monthCount - 1 downTo 0).map { referenceMonth.minusMonths(it.toLong()) }
     val billsById = bills.associateBy { it.id }
 
     return months.map { month ->

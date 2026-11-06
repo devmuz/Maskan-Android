@@ -60,6 +60,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import com.maskan.mobileapp.ui.components.isExpandedWidth
+import com.maskan.mobileapp.ui.components.SettingsTabletLayout
+import com.maskan.mobileapp.ui.components.SettingsSkyline
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -115,11 +119,197 @@ fun LandlordSettingsScreen(
     LaunchedEffect(Unit) {
         notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
+    val expanded = isExpandedWidth()
     val versionName = remember {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "—"
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
+    val header: @Composable () -> Unit = {
+        // 1. Header (avatar + email, as on iOS)
+        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(84.dp)
+                    .shadow(16.dp, CircleShape, ambientColor = colors.indigoDeep, spotColor = colors.indigoDeep)
+                    .background(colors.primaryGradient, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
+            }
+            Text(text = email, style = MaskanType.cardTitle, color = colors.textPrimary, modifier = Modifier.padding(top = 16.dp))
+        }
+    }
+    val appearance: @Composable () -> Unit = {
+        // 2. Appearance
+        SettingsSection("APPEARANCE") {
+            SettingsRow(icon = Icons.Filled.Brush, iconColor = SettingsColors.purple, title = "Theme")
+            SegmentedControl(
+                options = listOf(AppTheme.SYSTEM, AppTheme.LIGHT, AppTheme.DARK),
+                selected = theme,
+                onSelect = { scope.launch { container.themePreferences.setTheme(it) } },
+                label = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
+            )
+        }
+    }
+    val preferences: @Composable () -> Unit = {
+        // 3. Preferences: Currency
+        SettingsSection("PREFERENCES") {
+            SettingsRow(
+                icon = Icons.Filled.AttachMoney,
+                iconColor = SettingsColors.green,
+                title = "Currency",
+                value = currentCurrency?.let { "${it.displayName} ${it.symbol}" } ?: "USD",
+                trailing = SettingsTrailing.Chevron,
+                onClick = onOpenCurrencyPicker,
+            )
+            if (container.authRepository.hasPasswordLogin) {
+                SettingsDivider()
+                SettingsRow(
+                    icon = Icons.Filled.Key,
+                    iconColor = colors.gradientStart,
+                    title = "Change Password",
+                    trailing = SettingsTrailing.Chevron,
+                    onClick = onOpenChangePassword,
+                )
+            }
+        }
+    }
+    val notifications: @Composable () -> Unit = {
+        // 4. Notifications
+        SettingsSection("NOTIFICATIONS") {
+            SettingsRow(icon = Icons.Filled.Notifications, iconColor = SettingsColors.red, title = "Push Notifications") {
+                // Without the 48dp minimum touch box and slightly scaled down,
+                // this row is the same height as the others (like iOS's toggle).
+                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                Switch(
+                    modifier = Modifier.height(24.dp).scale(0.8f),
+                    checked = notificationsEnabled,
+                    onCheckedChange = { enable ->
+                        if (enable) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                notificationsEnabled = true
+                            }
+                        } else {
+                            showNotificationsBlockedDialog = true
+                        }
+                    },
+                )
+                }
+            }
+        }
+    }
+    val subscription: @Composable () -> Unit = {
+        // 5. Subscription
+        SettingsSection("SUBSCRIPTION") {
+            val isPro = landlord?.isPro == true
+            SettingsRow(
+                icon = Icons.Filled.WorkspacePremium,
+                iconColor = if (isPro) colors.gold else SettingsColors.grey,
+                title = if (isPro) "Maskan Pro" else "Free Plan",
+                subtitle = if (isPro) "All features unlocked" else "1 property · 1 co-owner per building",
+            ) {
+                if (isPro) StatusBadge(text = "Active", color = colors.success)
+            }
+            SettingsDivider()
+            if (isPro) {
+                SettingsRow(
+                    icon = Icons.Filled.Autorenew,
+                    iconColor = SettingsColors.blue,
+                    title = "Manage Subscription",
+                    trailing = SettingsTrailing.External,
+                    onClick = {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/account/subscriptions")))
+                        }
+                    },
+                )
+            } else {
+                SettingsRow(
+                    icon = Icons.Filled.ArrowCircleUp,
+                    iconColor = colors.gradientStart,
+                    title = "Upgrade to Pro",
+                    titleColor = colors.gradientStart,
+                    titleWeight = FontWeight.SemiBold,
+                    trailing = SettingsTrailing.Chevron,
+                    onClick = onOpenPaywall,
+                )
+            }
+        }
+    }
+    val about: @Composable () -> Unit = {
+        // 6. About
+        SettingsSection("ABOUT") {
+            SettingsRow(
+                icon = Icons.Filled.Email,
+                iconColor = SettingsColors.orange,
+                title = "Contact Support",
+                trailing = SettingsTrailing.External,
+                onClick = { openSupportEmail(context) },
+            )
+            SettingsDivider()
+            SettingsRow(
+                icon = Icons.Filled.Star,
+                iconColor = SettingsColors.yellow,
+                title = "Rate Maskan",
+                trailing = SettingsTrailing.External,
+                onClick = {
+                    runCatching {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}")))
+                    }
+                },
+            )
+            SettingsDivider()
+            SettingsRow(
+                icon = Icons.Filled.PanTool,
+                iconColor = SettingsColors.blue,
+                title = "Privacy Policy",
+                trailing = SettingsTrailing.Chevron,
+                onClick = { openPrivacyPolicy(context) },
+            )
+        }
+    }
+    val logOut: @Composable () -> Unit = {
+        // 7. Log Out
+        MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+            SettingsRow(
+                icon = Icons.AutoMirrored.Filled.Logout,
+                iconColor = colors.danger,
+                title = "Log Out",
+                titleColor = colors.danger,
+                titleWeight = FontWeight.SemiBold,
+                onClick = { showLogoutDialog = true },
+            )
+        }
+    }
+    val deleteAccount: @Composable () -> Unit = {
+        Text(
+            text = if (isDeletingAccount) "Deleting…" else "Delete Account",
+            style = MaskanType.secondary,
+            color = colors.textSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = !isDeletingAccount) { showDeleteAccountDialog = true }
+                .padding(vertical = 8.dp),
+        )
+    }
+    val version: @Composable () -> Unit = {
+        Text(
+            text = "App version $versionName",
+            style = MaskanType.caption,
+            color = colors.textTertiary,
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 24.dp),
+            textAlign = TextAlign.Center,
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
+        if (expanded) {
+            SettingsSkyline(modifier = Modifier.align(Alignment.BottomCenter))
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -130,177 +320,39 @@ fun LandlordSettingsScreen(
         ) {
             Text(text = "Settings", style = MaskanType.screenTitle, color = colors.textPrimary)
 
-            // 1. Header (avatar + email, as on iOS)
-            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    modifier = Modifier
-                        .size(84.dp)
-                        .shadow(16.dp, CircleShape, ambientColor = colors.indigoDeep, spotColor = colors.indigoDeep)
-                        .background(colors.primaryGradient, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
-                }
-                Text(text = email, style = MaskanType.cardTitle, color = colors.textPrimary, modifier = Modifier.padding(top = 16.dp))
-            }
-
-            // 2. Appearance
-            SettingsSection("APPEARANCE") {
-                SettingsRow(icon = Icons.Filled.Brush, iconColor = SettingsColors.purple, title = "Theme")
-                SegmentedControl(
-                    options = listOf(AppTheme.SYSTEM, AppTheme.LIGHT, AppTheme.DARK),
-                    selected = theme,
-                    onSelect = { scope.launch { container.themePreferences.setTheme(it) } },
-                    label = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
-                )
-            }
-
-            // 3. Preferences: Currency
-            SettingsSection("PREFERENCES") {
-                SettingsRow(
-                    icon = Icons.Filled.AttachMoney,
-                    iconColor = SettingsColors.green,
-                    title = "Currency",
-                    value = currentCurrency?.let { "${it.displayName} ${it.symbol}" } ?: "USD",
-                    trailing = SettingsTrailing.Chevron,
-                    onClick = onOpenCurrencyPicker,
-                )
-                if (container.authRepository.hasPasswordLogin) {
-                    SettingsDivider()
-                    SettingsRow(
-                        icon = Icons.Filled.Key,
-                        iconColor = colors.gradientStart,
-                        title = "Change Password",
-                        trailing = SettingsTrailing.Chevron,
-                        onClick = onOpenChangePassword,
-                    )
-                }
-            }
-
-            // 4. Notifications
-            SettingsSection("NOTIFICATIONS") {
-                SettingsRow(icon = Icons.Filled.Notifications, iconColor = SettingsColors.red, title = "Push Notifications") {
-                    // Without the 48dp minimum touch box and slightly scaled down,
-                    // this row is the same height as the others (like iOS's toggle).
-                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                    Switch(
-                        modifier = Modifier.height(24.dp).scale(0.8f),
-                        checked = notificationsEnabled,
-                        onCheckedChange = { enable ->
-                            if (enable) {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                                } else {
-                                    notificationsEnabled = true
-                                }
-                            } else {
-                                showNotificationsBlockedDialog = true
-                            }
-                        },
-                    )
-                    }
-                }
-            }
-
-            // 5. Subscription
-            SettingsSection("SUBSCRIPTION") {
-                val isPro = landlord?.isPro == true
-                SettingsRow(
-                    icon = Icons.Filled.WorkspacePremium,
-                    iconColor = if (isPro) colors.gold else SettingsColors.grey,
-                    title = if (isPro) "Maskan Pro" else "Free Plan",
-                    subtitle = if (isPro) "All features unlocked" else "1 property · 1 co-owner per building",
-                ) {
-                    if (isPro) StatusBadge(text = "Active", color = colors.success)
-                }
-                SettingsDivider()
-                if (isPro) {
-                    SettingsRow(
-                        icon = Icons.Filled.Autorenew,
-                        iconColor = SettingsColors.blue,
-                        title = "Manage Subscription",
-                        trailing = SettingsTrailing.External,
-                        onClick = {
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/account/subscriptions")))
-                            }
-                        },
-                    )
-                } else {
-                    SettingsRow(
-                        icon = Icons.Filled.ArrowCircleUp,
-                        iconColor = colors.gradientStart,
-                        title = "Upgrade to Pro",
-                        titleColor = colors.gradientStart,
-                        titleWeight = FontWeight.SemiBold,
-                        trailing = SettingsTrailing.Chevron,
-                        onClick = onOpenPaywall,
-                    )
-                }
-            }
-
-            // 6. About
-            SettingsSection("ABOUT") {
-                SettingsRow(
-                    icon = Icons.Filled.Email,
-                    iconColor = SettingsColors.orange,
-                    title = "Contact Support",
-                    trailing = SettingsTrailing.External,
-                    onClick = { openSupportEmail(context) },
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = Icons.Filled.Star,
-                    iconColor = SettingsColors.yellow,
-                    title = "Rate Maskan",
-                    trailing = SettingsTrailing.External,
-                    onClick = {
-                        runCatching {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}")))
-                        }
+            if (expanded) {
+                // Tablet: account on the left, sections in two columns (iPad layout).
+                SettingsTabletLayout(
+                    account = {
+                        header()
+                        PlanBadge(isPro = landlord?.isPro == true)
+                    },
+                    accountFooter = {
+                        logOut()
+                        deleteAccount()
+                        version()
+                    },
+                    leading = {
+                        appearance()
+                        preferences()
+                        notifications()
+                    },
+                    trailing = {
+                        subscription()
+                        about()
                     },
                 )
-                SettingsDivider()
-                SettingsRow(
-                    icon = Icons.Filled.PanTool,
-                    iconColor = SettingsColors.blue,
-                    title = "Privacy Policy",
-                    trailing = SettingsTrailing.Chevron,
-                    onClick = { openPrivacyPolicy(context) },
-                )
+            } else {
+                header()
+                appearance()
+                preferences()
+                notifications()
+                subscription()
+                about()
+                logOut()
+                deleteAccount()
+                version()
             }
-
-            // 7. Log Out
-            MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
-                SettingsRow(
-                    icon = Icons.AutoMirrored.Filled.Logout,
-                    iconColor = colors.danger,
-                    title = "Log Out",
-                    titleColor = colors.danger,
-                    titleWeight = FontWeight.SemiBold,
-                    onClick = { showLogoutDialog = true },
-                )
-            }
-
-            Text(
-                text = if (isDeletingAccount) "Deleting…" else "Delete Account",
-                style = MaskanType.secondary,
-                color = colors.textSecondary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = !isDeletingAccount) { showDeleteAccountDialog = true }
-                    .padding(vertical = 8.dp),
-            )
-
-            Text(
-                text = "App version $versionName",
-                style = MaskanType.caption,
-                color = colors.textTertiary,
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 24.dp),
-                textAlign = TextAlign.Center,
-            )
         }
     }
 
@@ -433,6 +485,32 @@ private fun SettingsSection(title: String, content: @Composable ColumnScope.() -
             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
         )
         MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp), content = content)
+    }
+}
+
+/** Tablet account card: the plan, like the iPad plan badge. */
+@Composable
+private fun PlanBadge(isPro: Boolean) {
+    val colors = MaskanTheme.colors
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (isPro) colors.primaryGradient else SolidColor(colors.textSecondary.copy(alpha = 0.12f)))
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            if (isPro) Icons.Filled.WorkspacePremium else Icons.Filled.Person,
+            contentDescription = null,
+            tint = if (isPro) Color.White else colors.textSecondary,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            text = if (isPro) "Maskan Pro" else "Free Plan",
+            style = MaskanType.caption.copy(fontWeight = FontWeight.SemiBold),
+            color = if (isPro) Color.White else colors.textSecondary,
+        )
     }
 }
 

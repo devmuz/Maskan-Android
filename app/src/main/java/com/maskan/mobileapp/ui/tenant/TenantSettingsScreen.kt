@@ -51,6 +51,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import com.maskan.mobileapp.ui.components.isExpandedWidth
+import com.maskan.mobileapp.ui.components.SettingsTabletLayout
+import com.maskan.mobileapp.ui.components.SettingsSkyline
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -69,6 +73,22 @@ import com.maskan.mobileapp.di.LocalAppContainer
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
+
+/** Tablet account card: the tenant's Property ID, like the iPad pill. */
+@Composable
+private fun PropertyIdBadge(code: String) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(MaskanTheme.colors.primaryGradient)
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(Icons.Filled.Tag, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+        Text(text = code, style = MaskanType.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = Color.White)
+    }
+}
 
 /** Teal used only for the "Move-in Date" badge — no theme token is close enough. */
 private val MoveInDateBadgeColor = Color(0xFF14B8A6)
@@ -102,8 +122,170 @@ fun TenantSettingsScreen(
         notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
+    val expanded = isExpandedWidth()
     val versionName = remember {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "—"
+    }
+
+    val header: @Composable () -> Unit = {
+        // 1. Header
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            val initial = tenant?.name?.trim()?.firstOrNull()?.uppercaseChar()
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .shadow(16.dp, CircleShape, ambientColor = colors.indigoDeep, spotColor = colors.indigoDeep)
+                    .background(colors.primaryGradient, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (initial != null) {
+                    Text(text = initial.toString(), style = MaskanType.screenTitle, color = Color.White)
+                } else {
+                    Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(44.dp))
+                }
+            }
+            Text(text = tenant?.name?.takeIf { it.isNotBlank() } ?: "Tenant", style = MaskanType.cardTitle, color = colors.textPrimary, modifier = Modifier.padding(top = 12.dp))
+            tenant?.contact?.takeIf { it.isNotBlank() }?.let {
+                Text(text = it, style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
+    }
+    val property: @Composable () -> Unit = {
+        // 2. Property section
+        tenant?.let { t ->
+            val propertyRows = buildList {
+                add(Triple(Icons.Filled.Tag as ImageVector, colors.gradientStart, "Property ID" to t.propertyIdCode))
+                t.moveInDate?.let { add(Triple(Icons.Filled.CalendarMonth as ImageVector, MoveInDateBadgeColor, "Move-in Date" to dateFormat.format(it))) }
+                t.rentDueDay?.let { add(Triple(Icons.Filled.Schedule as ImageVector, colors.warning, "Rent Due" to "Day $it of each month")) }
+            }
+            Column {
+                Text(text = "PROPERTY", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
+                MaskanCard(modifier = Modifier.fillMaxWidth()) {
+                    propertyRows.forEachIndexed { index, (icon, badgeColor, labelValue) ->
+                        if (index > 0) HorizontalDivider(color = colors.border, modifier = Modifier.padding(vertical = 10.dp))
+                        SettingsIconRow(icon = icon, badgeColor = badgeColor, label = labelValue.first, value = labelValue.second)
+                    }
+                }
+            }
+        }
+    }
+    val appearance: @Composable () -> Unit = {
+        // 3. Appearance
+        Column {
+            Text(text = "APPEARANCE", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
+            MaskanCard(modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 12.dp)) {
+                    SettingsBadge(icon = Icons.Filled.Palette, color = colors.gradientEnd)
+                    Text(text = "Theme", style = MaskanType.bodyMedium, color = colors.textPrimary)
+                }
+                SegmentedControl(
+                    options = listOf(AppTheme.SYSTEM, AppTheme.LIGHT, AppTheme.DARK),
+                    selected = theme,
+                    onSelect = { scope.launch { container.themePreferences.setTheme(it) } },
+                    label = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                )
+            }
+        }
+    }
+    val notifications: @Composable () -> Unit = {
+        // 4. Notifications
+        Column {
+            Text(text = "NOTIFICATIONS", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
+            MaskanCard(modifier = Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SettingsBadge(icon = Icons.Filled.Notifications, color = colors.danger)
+                        Text(text = "Push Notifications", style = MaskanType.bodyMedium, color = colors.textPrimary)
+                    }
+                    Switch(
+                        checked = notificationsEnabled,
+                        onCheckedChange = { enable ->
+                            if (enable) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    notificationsEnabled = true
+                                }
+                            } else {
+                                showNotificationsBlockedDialog = true
+                            }
+                        },
+                    )
+                }
+            }
+        }
+    }
+    val security: @Composable () -> Unit = {
+        // 5. Security
+        Column {
+            Text(text = "SECURITY", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
+            MaskanCard(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = onChangePassword),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SettingsBadge(icon = Icons.Filled.VpnKey, color = colors.warning)
+                        Text(text = "Change Password", style = MaskanType.bodyMedium, color = colors.textPrimary)
+                    }
+                    Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
+                }
+            }
+        }
+    }
+    val about: @Composable () -> Unit = {
+        // 6. About
+        Column {
+            Text(text = "ABOUT", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
+            MaskanCard(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}")))
+                        }
+                    }.padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SettingsBadge(icon = Icons.Filled.Star, color = colors.gold)
+                        Text(text = "Rate Maskan", style = MaskanType.bodyMedium, color = colors.textPrimary)
+                    }
+                    Icon(Icons.Filled.OpenInNew, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
+                }
+                HorizontalDivider(color = colors.border, modifier = Modifier.padding(vertical = 10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { openPrivacyPolicy(context) }.padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SettingsBadge(icon = Icons.Filled.PrivacyTip, color = colors.textTertiary)
+                        Text(text = "Privacy Policy", style = MaskanType.bodyMedium, color = colors.textPrimary)
+                    }
+                    Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
+                }
+            }
+        }
+    }
+    val logOut: @Composable () -> Unit = {
+        // 7. Log Out
+        GradientButton(
+            text = "Log Out",
+            onClick = { showLogoutDialog = true },
+            brush = androidx.compose.ui.graphics.SolidColor(colors.fieldBackground),
+            contentColor = colors.danger,
+        )
+    }
+    val version: @Composable () -> Unit = {
+        Text(
+            text = "App version $versionName",
+            style = MaskanType.caption,
+            color = colors.textTertiary,
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 24.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
     }
 
     Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
@@ -122,161 +304,47 @@ fun TenantSettingsScreen(
             Text(text = "Settings", style = MaskanType.cardTitle, color = colors.textPrimary, modifier = Modifier.align(Alignment.Center))
         }
 
-        Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = MaskanDimens.screenHPadding),
-            verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
-        ) {
-            // 1. Header
-            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                val initial = tenant?.name?.trim()?.firstOrNull()?.uppercaseChar()
-                Box(
-                    modifier = Modifier
-                        .size(96.dp)
-                        .shadow(16.dp, CircleShape, ambientColor = colors.indigoDeep, spotColor = colors.indigoDeep)
-                        .background(colors.primaryGradient, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (initial != null) {
-                        Text(text = initial.toString(), style = MaskanType.screenTitle, color = Color.White)
-                    } else {
-                        Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(44.dp))
-                    }
-                }
-                Text(text = tenant?.name?.takeIf { it.isNotBlank() } ?: "Tenant", style = MaskanType.cardTitle, color = colors.textPrimary, modifier = Modifier.padding(top = 12.dp))
-                tenant?.contact?.takeIf { it.isNotBlank() }?.let {
-                    Text(text = it, style = MaskanType.secondary, color = colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
-                }
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (expanded) {
+                SettingsSkyline(modifier = Modifier.align(Alignment.BottomCenter))
             }
-
-            // 2. Property section
-            tenant?.let { t ->
-                val propertyRows = buildList {
-                    add(Triple(Icons.Filled.Tag as ImageVector, colors.gradientStart, "Property ID" to t.propertyIdCode))
-                    t.moveInDate?.let { add(Triple(Icons.Filled.CalendarMonth as ImageVector, MoveInDateBadgeColor, "Move-in Date" to dateFormat.format(it))) }
-                    t.rentDueDay?.let { add(Triple(Icons.Filled.Schedule as ImageVector, colors.warning, "Rent Due" to "Day $it of each month")) }
-                }
-                Column {
-                    Text(text = "PROPERTY", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
-                    MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                        propertyRows.forEachIndexed { index, (icon, badgeColor, labelValue) ->
-                            if (index > 0) HorizontalDivider(color = colors.border, modifier = Modifier.padding(vertical = 10.dp))
-                            SettingsIconRow(icon = icon, badgeColor = badgeColor, label = labelValue.first, value = labelValue.second)
-                        }
-                    }
-                }
-            }
-
-            // 3. Appearance
-            Column {
-                Text(text = "APPEARANCE", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
-                MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 12.dp)) {
-                        SettingsBadge(icon = Icons.Filled.Palette, color = colors.gradientEnd)
-                        Text(text = "Theme", style = MaskanType.bodyMedium, color = colors.textPrimary)
-                    }
-                    SegmentedControl(
-                        options = listOf(AppTheme.SYSTEM, AppTheme.LIGHT, AppTheme.DARK),
-                        selected = theme,
-                        onSelect = { scope.launch { container.themePreferences.setTheme(it) } },
-                        label = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+            Column(
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = MaskanDimens.screenHPadding),
+                verticalArrangement = Arrangement.spacedBy(MaskanDimens.sectionSpacing),
+            ) {
+                if (expanded) {
+                    // Tablet: account on the left, sections in two columns (iPad layout).
+                    SettingsTabletLayout(
+                        modifier = Modifier.padding(top = 8.dp),
+                        account = {
+                            header()
+                            tenant?.propertyIdCode?.takeIf { it.isNotBlank() }?.let { PropertyIdBadge(it) }
+                        },
+                        accountFooter = {
+                            logOut()
+                            version()
+                        },
+                        leading = {
+                            property()
+                            appearance()
+                            notifications()
+                        },
+                        trailing = {
+                            security()
+                            about()
+                        },
                     )
+                } else {
+                    header()
+                    property()
+                    appearance()
+                    notifications()
+                    security()
+                    about()
+                    logOut()
+                    version()
                 }
             }
-
-            // 4. Notifications
-            Column {
-                Text(text = "NOTIFICATIONS", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
-                MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SettingsBadge(icon = Icons.Filled.Notifications, color = colors.danger)
-                            Text(text = "Push Notifications", style = MaskanType.bodyMedium, color = colors.textPrimary)
-                        }
-                        Switch(
-                            checked = notificationsEnabled,
-                            onCheckedChange = { enable ->
-                                if (enable) {
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                        notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                                    } else {
-                                        notificationsEnabled = true
-                                    }
-                                } else {
-                                    showNotificationsBlockedDialog = true
-                                }
-                            },
-                        )
-                    }
-                }
-            }
-
-            // 5. Security
-            Column {
-                Text(text = "SECURITY", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
-                MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable(onClick = onChangePassword),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SettingsBadge(icon = Icons.Filled.VpnKey, color = colors.warning)
-                            Text(text = "Change Password", style = MaskanType.bodyMedium, color = colors.textPrimary)
-                        }
-                        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
-                    }
-                }
-            }
-
-            // 6. About
-            Column {
-                Text(text = "ABOUT", style = MaskanType.overline, color = colors.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
-                MaskanCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable {
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}")))
-                            }
-                        }.padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SettingsBadge(icon = Icons.Filled.Star, color = colors.gold)
-                            Text(text = "Rate Maskan", style = MaskanType.bodyMedium, color = colors.textPrimary)
-                        }
-                        Icon(Icons.Filled.OpenInNew, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
-                    }
-                    HorizontalDivider(color = colors.border, modifier = Modifier.padding(vertical = 10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { openPrivacyPolicy(context) }.padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SettingsBadge(icon = Icons.Filled.PrivacyTip, color = colors.textTertiary)
-                            Text(text = "Privacy Policy", style = MaskanType.bodyMedium, color = colors.textPrimary)
-                        }
-                        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = colors.textTertiary)
-                    }
-                }
-            }
-
-            // 7. Log Out
-            GradientButton(
-                text = "Log Out",
-                onClick = { showLogoutDialog = true },
-                brush = androidx.compose.ui.graphics.SolidColor(colors.fieldBackground),
-                contentColor = colors.danger,
-            )
-
-            Text(
-                text = "App version $versionName",
-                style = MaskanType.caption,
-                color = colors.textTertiary,
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 24.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            )
         }
     }
 
