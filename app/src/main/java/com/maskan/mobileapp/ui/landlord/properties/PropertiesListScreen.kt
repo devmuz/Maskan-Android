@@ -1,6 +1,7 @@
 package com.maskan.mobileapp.ui.landlord.properties
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,6 +67,13 @@ fun PropertiesScreen(
     onUpgradeRequired: () -> Unit,
     anchorRegistry: CoachMarkAnchorRegistry,
     coachMarkSequencer: CoachMarkSequencer,
+    /**
+     * Tablet list/detail split: the selection shown beside the list, as a
+     * [PropertySelection] key, and the keys this list currently offers (flats
+     * first, so the first flat is the default selection).
+     */
+    selectedKey: String? = null,
+    onVisibleKeys: ((List<String>) -> Unit)? = null,
 ) {
     val colors = MaskanTheme.colors
     val properties by viewModel.properties.collectAsStateWithLifecycle()
@@ -79,6 +87,18 @@ fun PropertiesScreen(
     }
     val groups = remember(properties) { groupProperties(properties) }
     val archivedGroups = remember(archivedProperties) { groupProperties(archivedProperties) }
+    if (onVisibleKeys != null) {
+        LaunchedEffect(groups, archivedGroups, filter) {
+            onVisibleKeys(
+                if (filter == PropertyFilter.ACTIVE) {
+                    groups.flatMap { g -> g.flats.map { PropertySelection.flat(it.id) } } +
+                        groups.map { PropertySelection.building(it.flats.first().id) }
+                } else {
+                    archivedGroups.flatMap { g -> g.flats.map { PropertySelection.archived(it.id) } }
+                },
+            )
+        }
+    }
     val currencyCode = { flats: List<com.maskan.mobileapp.data.model.Property> ->
         flats.firstOrNull()?.currency ?: landlord?.preferredCurrency ?: "USD"
     }
@@ -154,6 +174,7 @@ fun PropertiesScreen(
                         isUploadingPhoto = group.flats.any { it.id in uploadingIds },
                         isLocked = isLocked,
                         currencyCode = currencyCode(group.flats),
+                        selectedKey = selectedKey,
                         onFlatClick = onPropertyClick,
                         onManageCoOwners = { onBuildingClick(representative.id) },
                     )
@@ -172,6 +193,7 @@ fun PropertiesScreen(
                     ArchivedPropertyGroupCard(
                         group = group,
                         currencyCode = currencyCode(group.flats),
+                        selectedKey = selectedKey,
                         onFlatClick = onArchivedPropertyClick,
                     )
                 }
@@ -220,6 +242,7 @@ private fun PropertyGroupCard(
     isUploadingPhoto: Boolean,
     isLocked: Boolean,
     currencyCode: String,
+    selectedKey: String?,
     onFlatClick: (String) -> Unit,
     onManageCoOwners: () -> Unit,
 ) {
@@ -232,7 +255,12 @@ private fun PropertyGroupCard(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-            Column(modifier = Modifier.weight(1f).clickable(onClick = onManageCoOwners)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .then(if (selectedKey == PropertySelection.building(group.flats.first().id)) Modifier.selectionOutline() else Modifier)
+                    .clickable(onClick = onManageCoOwners),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (isLocked) {
                         Icon(Icons.Filled.Lock, contentDescription = "Locked on the free plan", tint = colors.textTertiary, modifier = Modifier.size(14.dp))
@@ -262,6 +290,7 @@ private fun PropertyGroupCard(
                 MaskanCard(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(if (selectedKey == PropertySelection.flat(flat.id)) Modifier.selectionOutline() else Modifier)
                         .clickable { onFlatClick(flat.id) },
                     shadowRadius = MaskanDimens.rowShadowRadius,
                 ) {
@@ -297,6 +326,7 @@ private fun PropertyGroupCard(
 private fun ArchivedPropertyGroupCard(
     group: PropertyGroup,
     currencyCode: String,
+    selectedKey: String?,
     onFlatClick: (String) -> Unit,
 ) {
     val colors = MaskanTheme.colors
@@ -322,7 +352,10 @@ private fun ArchivedPropertyGroupCard(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             group.flats.forEach { flat ->
                 MaskanCard(
-                    modifier = Modifier.fillMaxWidth().clickable { onFlatClick(flat.id) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (selectedKey == PropertySelection.archived(flat.id)) Modifier.selectionOutline() else Modifier)
+                        .clickable { onFlatClick(flat.id) },
                     shadowRadius = MaskanDimens.rowShadowRadius,
                 ) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -348,3 +381,15 @@ private fun ArchivedPropertyGroupCard(
         }
     }
 }
+
+/** Keys for what the tablet detail pane beside the properties list shows. */
+object PropertySelection {
+    fun flat(id: String) = "flat:$id"
+    fun building(id: String) = "building:$id"
+    fun archived(id: String) = "archived:$id"
+}
+
+/** Purple outline around the selected item in the tablet split. */
+@Composable
+private fun Modifier.selectionOutline(): Modifier =
+    border(2.dp, MaskanTheme.colors.gradientStart, RoundedCornerShape(MaskanDimens.cornerRadius))

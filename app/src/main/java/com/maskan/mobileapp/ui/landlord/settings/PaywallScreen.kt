@@ -79,9 +79,9 @@ private fun ProductDetails.basePhase() =
  * Pro paywall — same layout as iOS's `PaywallView`: gradient hero, Free vs
  * Pro feature table, Annual/Monthly plan picker, Subscribe Now. No Restore
  * Purchases button: Play purchases are re-checked automatically at every
- * landlord session start (LandlordViewModel). Backed by Play Billing; the cross-platform contract is what
- * `LandlordRepository.grantProEntitlement` writes to Firestore after a
- * purchase (08-landlord-settings.md). Closes itself once the landlord is Pro.
+ * landlord session start (LandlordViewModel). Backed by Play Billing; the cross-platform contract is the
+ * `proExpiryDate` the verifyPurchase Cloud Function writes to Firestore after
+ * verifying a purchase (08-landlord-settings.md). Closes itself once the landlord is Pro.
  */
 @Composable
 fun PaywallScreen(viewModel: LandlordViewModel, onBack: () -> Unit) {

@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -47,6 +49,25 @@ fun Modifier.readableWidth(maxWidth: Dp = 820.dp): Modifier =
     } else {
         this
     }
+
+/**
+ * Wraps a pushed screen (form or detail) so on tablets it sits in a centred
+ * column of readable width over the screen background, like the iPad's
+ * centred 760–860pt layouts. Phones get the screen unchanged.
+ */
+@Composable
+fun ReadableRoute(maxWidth: Dp = 820.dp, content: @Composable () -> Unit) {
+    if (isMediumWidth()) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(MaskanTheme.colors.background),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Box(modifier = Modifier.widthIn(max = maxWidth).fillMaxHeight()) { content() }
+        }
+    } else {
+        content()
+    }
+}
 
 /**
  * Two equal columns side by side on expanded widths, stacked (leading first)

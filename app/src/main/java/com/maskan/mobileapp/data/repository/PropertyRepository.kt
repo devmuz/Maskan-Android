@@ -82,6 +82,10 @@ class PropertyRepository(
     private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage,
 ) {
+    /** Photos go under the uploader's own uid (Storage rules), even for a co-owner's edit. */
+    private fun uploaderId(fallback: String): String =
+        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: fallback
+
     private val propertiesCollection = firestore.collection("properties")
     private val codesCollection = firestore.collection("propertyIdCodes")
 
@@ -287,7 +291,7 @@ class PropertyRepository(
         when (photo) {
             PhotoEdit.Keep -> Unit
             is PhotoEdit.Replace -> {
-                val ref = storage.reference.child("properties/${StorageEnv.folder}/${property.landlordId}/${UUID.randomUUID()}.jpg")
+                val ref = storage.reference.child("properties/${StorageEnv.folder}/${uploaderId(property.landlordId)}/${UUID.randomUUID()}.jpg")
                 ref.putBytes(photo.imageBytes).await()
                 sharedFields["photoUrl"] = ref.downloadUrl.await().toString()
             }
@@ -419,7 +423,7 @@ class PropertyRepository(
 
     /** Two-phase upload: doc(s) already exist with photoUrl=null; compress+upload, then patch. */
     suspend fun uploadPhoto(landlordId: String, propertyIds: List<String>, imageBytes: ByteArray) {
-        val ref = storage.reference.child("properties/${StorageEnv.folder}/$landlordId/${UUID.randomUUID()}.jpg")
+        val ref = storage.reference.child("properties/${StorageEnv.folder}/${uploaderId(landlordId)}/${UUID.randomUUID()}.jpg")
         ref.putBytes(imageBytes).await()
         val downloadUrl = ref.downloadUrl.await().toString()
 

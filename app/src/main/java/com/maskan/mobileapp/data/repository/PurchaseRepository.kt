@@ -30,26 +30,12 @@ object SubscriptionProducts {
     const val MONTHLY = "maskan_pro_monthly"
     const val YEARLY = "maskan_pro_yearly"
     val ALL = listOf(MONTHLY, YEARLY)
-
-    /**
-     * Nominal billing period plus a small grace window, so a subscriber who
-     * doesn't reopen the app exactly on their renewal day isn't briefly
-     * locked out before the next `restorePurchases()` re-extends it.
-     */
-    fun periodDays(productId: String): Int? = when (productId) {
-        MONTHLY -> 30 + GRACE_DAYS
-        YEARLY -> 365 + GRACE_DAYS
-        else -> null
-    }
-
-    private const val GRACE_DAYS = 3
 }
 
 /**
- * Wraps Play Billing (client library only — no Google Play Developer API /
- * Cloud Function verification, by design; see `LandlordRepository.
- * grantProEntitlement` for how the expiry date is anchored to Firestore's
- * server clock instead). Mirrors iOS's `PurchaseService` — see
+ * Wraps Play Billing. Each purchase is verified server-side
+ * (`verifyPurchase{Env}` checks it with the Google Play Developer API and
+ * writes the Pro expiry). Mirrors iOS's `PurchaseService` — see
  * `02-data-models.md` -> "Free tier vs. Pro" and `08-landlord-settings.md`.
  */
 class PurchaseRepository(context: Context, private val landlordRepository: LandlordRepository) {
@@ -146,9 +132,10 @@ class PurchaseRepository(context: Context, private val landlordRepository: Landl
         if (!purchase.isAcknowledged) {
             billingClient.acknowledgePurchase(AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchase.purchaseToken).build())
         }
-        val id = landlordId ?: return
-        val productId = purchase.products.firstOrNull() ?: return
-        val periodDays = SubscriptionProducts.periodDays(productId) ?: return
-        landlordRepository.grantProEntitlement(id, periodDays, source = "android")
+        landlordId ?: return
+        if (purchase.products.none { it in SubscriptionProducts.ALL }) return
+        // The server verifies the token with Google Play and records Pro;
+        // failures (offline, already linked elsewhere) retry next session.
+        runCatching { landlordRepository.verifyPlayPurchase(purchase.purchaseToken) }
     }
 }

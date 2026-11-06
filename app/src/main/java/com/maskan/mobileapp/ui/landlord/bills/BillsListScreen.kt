@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,7 +68,18 @@ private enum class BillFilter(val label: String) { ALL("All"), PENDING("Pending"
  * that this inconsistency exists in the source app.
  */
 @Composable
-fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onAddClick: () -> Unit) {
+/**
+ * [selectedBillId] / [onVisibleBillIds]: tablet list/detail split — highlights
+ * the bill shown beside the list and reports the list order so the first one
+ * can be selected by default.
+ */
+fun BillsScreen(
+    viewModel: LandlordViewModel,
+    onBillClick: (String) -> Unit,
+    onAddClick: () -> Unit,
+    selectedBillId: String? = null,
+    onVisibleBillIds: ((List<String>) -> Unit)? = null,
+) {
     val colors = MaskanTheme.colors
     val bills by viewModel.bills.collectAsStateWithLifecycle()
     val properties by viewModel.properties.collectAsStateWithLifecycle()
@@ -92,6 +104,10 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
         filtered.groupBy { it.propertyId }
             .toList()
             .sortedBy { (propertyId, _) -> propertiesById[propertyId]?.displayTitle ?: "" }
+            .map { (propertyId, propertyBills) -> propertyId to propertyBills.sortedByDescending { it.dueDate } }
+    }
+    if (onVisibleBillIds != null) {
+        LaunchedEffect(grouped) { onVisibleBillIds(grouped.flatMap { (_, b) -> b.map { it.id } }) }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding()) {
@@ -185,10 +201,10 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
                     }
                     item(key = "group_$propertyId") {
                         MaskanCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
-                            val sorted = propertyBills.sortedByDescending { it.dueDate }
+                            val sorted = propertyBills
                             sorted.forEachIndexed { index, bill ->
                                 val currencyCode = property?.currency ?: fallbackCurrencyCode
-                                BillRow(bill, currencyCode, dateFormat, onClick = { onBillClick(bill.id) })
+                                BillRow(bill, currencyCode, dateFormat, selected = bill.id == selectedBillId, onClick = { onBillClick(bill.id) })
                                 if (index != sorted.lastIndex) {
                                     androidx.compose.material3.HorizontalDivider(color = colors.border)
                                 }
@@ -214,7 +230,7 @@ fun BillsScreen(viewModel: LandlordViewModel, onBillClick: (String) -> Unit, onA
 }
 
 @Composable
-private fun BillRow(bill: Bill, currencyCode: String, dateFormat: SimpleDateFormat, onClick: () -> Unit) {
+private fun BillRow(bill: Bill, currencyCode: String, dateFormat: SimpleDateFormat, selected: Boolean = false, onClick: () -> Unit) {
     val colors = MaskanTheme.colors
     // `verifying` shows as "Pending" here — it's an internal state meaning "tenant says
     // they paid, awaiting confirmation," not part of this list's status vocabulary
@@ -227,7 +243,11 @@ private fun BillRow(bill: Bill, currencyCode: String, dateFormat: SimpleDateForm
     }
 
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(MaskanDimens.cardPadding),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(if (selected) colors.gradientStart.copy(alpha = 0.12f) else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(MaskanDimens.cardPadding),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {

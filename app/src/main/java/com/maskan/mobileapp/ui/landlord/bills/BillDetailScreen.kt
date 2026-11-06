@@ -66,7 +66,8 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () -> Unit) {
+/** [embedded]: shown beside the bills list on tablets — no back button. */
+fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () -> Unit, embedded: Boolean = false) {
     val colors = MaskanTheme.colors
     val scope = rememberCoroutineScope()
     val bills by viewModel.bills.collectAsStateWithLifecycle()
@@ -105,7 +106,7 @@ fun BillDetailScreen(viewModel: LandlordViewModel, billId: String, onBack: () ->
 
     Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding().imePadding()) {
         Row(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
+            if (!embedded) IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
         }
 
         Column(

@@ -1,5 +1,6 @@
 package com.maskan.mobileapp.ui.tenant
 
+import com.maskan.mobileapp.ui.components.ReadableRoute
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -58,55 +59,67 @@ fun TenantShellScreen(onSignedOut: () -> Unit) {
             TenantRoutes.REQUEST_DETAIL,
             arguments = listOf(navArgument("requestId") { type = NavType.StringType }),
         ) { entry ->
-            TenantRequestDetailScreen(
-                viewModel = viewModel,
-                requestId = entry.arguments?.getString("requestId").orEmpty(),
-                onBack = { navController.popBackStack() },
-            )
+            ReadableRoute {
+                TenantRequestDetailScreen(
+                    viewModel = viewModel,
+                    requestId = entry.arguments?.getString("requestId").orEmpty(),
+                    onBack = { navController.popBackStack() },
+                )
+            }
         }
         composable(
             TenantRoutes.BILL_DETAIL,
             arguments = listOf(navArgument("billId") { type = NavType.StringType }),
         ) { entry ->
-            BillDetailScreen(
-                viewModel = viewModel,
-                billId = entry.arguments?.getString("billId").orEmpty(),
-                onBack = { navController.popBackStack() },
-                onPaySubmit = { navController.navigate(TenantRoutes.submitPayment(it)) },
-            )
+            ReadableRoute {
+                BillDetailScreen(
+                    viewModel = viewModel,
+                    billId = entry.arguments?.getString("billId").orEmpty(),
+                    onBack = { navController.popBackStack() },
+                    onPaySubmit = { navController.navigate(TenantRoutes.submitPayment(it)) },
+                )
+            }
         }
         composable(
             TenantRoutes.SUBMIT_PAYMENT,
             arguments = listOf(navArgument("billId") { type = NavType.StringType }),
         ) { entry ->
-            SubmitPaymentVerificationScreen(
-                viewModel = viewModel,
-                billId = entry.arguments?.getString("billId").orEmpty(),
-                onDone = { navController.popBackStack(TenantRoutes.HOME, inclusive = false) },
-                onCancel = { navController.popBackStack() },
-            )
+            ReadableRoute {
+                SubmitPaymentVerificationScreen(
+                    viewModel = viewModel,
+                    billId = entry.arguments?.getString("billId").orEmpty(),
+                    onDone = { navController.popBackStack(TenantRoutes.HOME, inclusive = false) },
+                    onCancel = { navController.popBackStack() },
+                )
+            }
         }
         composable(TenantRoutes.HISTORY) {
-            TenantHistoryScreen(
-                viewModel = viewModel,
-                onBack = { navController.popBackStack() },
-                onBillClick = { navController.navigate(TenantRoutes.billDetail(it)) },
-            )
+            ReadableRoute {
+                TenantHistoryScreen(
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() },
+                    onBillClick = { navController.navigate(TenantRoutes.billDetail(it)) },
+                )
+            }
         }
         composable(TenantRoutes.REQUESTS) {
-            TenantRequestsScreen(
-                viewModel = viewModel,
-                onBack = { navController.popBackStack() },
-                onAddRequest = { navController.navigate(TenantRoutes.ADD_REQUEST) },
-                onRequestClick = { navController.navigate(TenantRoutes.requestDetail(it)) },
-            )
+            ReadableRoute {
+                TenantRequestsScreen(
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() },
+                    onAddRequest = { navController.navigate(TenantRoutes.ADD_REQUEST) },
+                    onRequestClick = { navController.navigate(TenantRoutes.requestDetail(it)) },
+                )
+            }
         }
         composable(TenantRoutes.ADD_REQUEST) {
-            AddRequestScreen(
-                viewModel = viewModel,
-                onDone = { navController.popBackStack() },
-                onCancel = { navController.popBackStack() },
-            )
+            ReadableRoute {
+                AddRequestScreen(
+                    viewModel = viewModel,
+                    onDone = { navController.popBackStack() },
+                    onCancel = { navController.popBackStack() },
+                )
+            }
         }
         composable(TenantRoutes.SETTINGS) {
             TenantSettingsScreen(
@@ -117,11 +130,13 @@ fun TenantShellScreen(onSignedOut: () -> Unit) {
             )
         }
         composable(TenantRoutes.CHANGE_PASSWORD) {
-            ChangePasswordScreen(
-                changePassword = viewModel::changePassword,
-                onDone = { navController.popBackStack() },
-                onCancel = { navController.popBackStack() },
-            )
+            ReadableRoute {
+                ChangePasswordScreen(
+                    changePassword = viewModel::changePassword,
+                    onDone = { navController.popBackStack() },
+                    onCancel = { navController.popBackStack() },
+                )
+            }
         }
     }
 }

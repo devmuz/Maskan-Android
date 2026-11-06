@@ -327,7 +327,7 @@ class BillingRepository(private val firestore: FirebaseFirestore) {
 
     /**
      * Tenant-initiated "I've Paid This Bill" (09-tenant-app.md): a batch write
-     * that sets the bill to `"verifying"` (plus the amount the tenant entered)
+     * that sets the bill to `"verifying"` (the amount the tenant entered goes on the payment)
      * and creates a pending `payments` doc. The bill stays `verifying` until
      * the landlord approves (-> paid) or rejects (-> back to pending, payment
      * doc deleted) — see `07-landlord-bills.md`.
@@ -356,7 +356,9 @@ class BillingRepository(private val firestore: FirebaseFirestore) {
                 ),
             )
         } else {
-            batch.update(billRef, mapOf("status" to "verifying", "amount" to amount))
+            // The amount paid lives on the payment record; the bill keeps the
+            // landlord's amount (tenants may only change its status).
+            batch.update(billRef, "status", "verifying")
         }
         batch.set(
             paymentsCollection.document(),

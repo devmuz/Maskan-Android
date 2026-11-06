@@ -1,6 +1,8 @@
 package com.maskan.mobileapp.ui.landlord.tenants
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,7 +57,18 @@ import java.util.Locale
 private enum class TenantFilter { ACTIVE, OLD }
 
 @Composable
-fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit, onAddClick: () -> Unit) {
+/**
+ * [selectedTenantId] / [onVisibleTenantIds]: tablet list/detail split — outlines
+ * the tenant shown beside the list and reports the list order so the first
+ * one can be selected by default.
+ */
+fun TenantsScreen(
+    viewModel: LandlordViewModel,
+    onTenantClick: (String) -> Unit,
+    onAddClick: () -> Unit,
+    selectedTenantId: String? = null,
+    onVisibleTenantIds: ((List<String>) -> Unit)? = null,
+) {
     val colors = MaskanTheme.colors
     val tenants by viewModel.tenants.collectAsStateWithLifecycle()
     val properties by viewModel.properties.collectAsStateWithLifecycle()
@@ -72,6 +85,9 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
         tenants.filter { !it.isDeleted && if (filter == TenantFilter.ACTIVE) it.isActive else !it.isActive }
     }
     val dateFormat = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
+    if (onVisibleTenantIds != null) {
+        LaunchedEffect(filtered) { onVisibleTenantIds(filtered.map { it.id }) }
+    }
 
     var tenantForRemoval by remember { mutableStateOf<Tenant?>(null) }
     var removalError by remember { mutableStateOf<String?>(null) }
@@ -118,6 +134,7 @@ fun TenantsScreen(viewModel: LandlordViewModel, onTenantClick: (String) -> Unit,
                         tenant = tenant,
                         property = propertiesById[tenant.resolvedPropertyId],
                         dateFormat = dateFormat,
+                        selected = tenant.id == selectedTenantId,
                         onClick = { onTenantClick(tenant.id) },
                         onEdit = { onTenantClick(tenant.id) },
                         onRemove = { tenantForRemoval = tenant },
@@ -181,6 +198,7 @@ private fun TenantRow(
     tenant: Tenant,
     property: Property?,
     dateFormat: SimpleDateFormat,
+    selected: Boolean = false,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onRemove: () -> Unit,
@@ -188,7 +206,12 @@ private fun TenantRow(
     val colors = MaskanTheme.colors
     var menuExpanded by remember { mutableStateOf(false) }
 
-    MaskanCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    MaskanCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (selected) Modifier.border(2.dp, colors.gradientStart, RoundedCornerShape(MaskanDimens.cornerRadius)) else Modifier)
+            .clickable(onClick = onClick),
+    ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = tenant.name, style = MaskanType.cardTitle, color = colors.textPrimary)

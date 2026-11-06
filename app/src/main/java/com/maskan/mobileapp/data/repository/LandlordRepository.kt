@@ -4,7 +4,9 @@ import com.google.firebase.firestore.SetOptions
 import com.maskan.mobileapp.data.model.Landlord
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Source
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
+import com.maskan.mobileapp.data.util.CloudFunctionEnv
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.awaitClose
@@ -24,7 +26,10 @@ import java.util.Locale
  * three services. Nothing in the app read this doc before now; profile
  * fields (currency, Pro state) all live here.
  */
-class LandlordRepository(private val firestore: FirebaseFirestore) {
+class LandlordRepository(
+    private val firestore: FirebaseFirestore,
+    private val functions: FirebaseFunctions,
+) {
     private val landlordsCollection = firestore.collection("landlords")
 
     private val _landlord = MutableStateFlow<Landlord?>(null)
@@ -97,37 +102,40 @@ class LandlordRepository(private val firestore: FirebaseFirestore) {
      * user can read, not just self) — see feature-properties.md's "Co-owner
      * lookup fix". The prospective co-owner must already have a Maskan account.
      */
-    /** One-off fetch — used to resolve a co-owner UID to a display email (feature-properties.md). */
-    suspend fun getById(landlordId: String): Landlord? =
-        landlordsCollection.document(landlordId).get().await().toObject(Landlord::class.java)
-
-    suspend fun findByEmail(email: String): Landlord? =
-        landlordsCollection.whereEqualTo("email", email.trim())
-            .limit(1)
-            .get()
+    /**
+     * Landlord profiles are private to their owner (Firestore rules), so
+     * co-owner lookups run server-side: [findLandlordUidByEmail] resolves an
+     * invite email, [landlordEmails] returns the owner's and co-owners' emails
+     * for a building the caller owns or co-owns.
+     */
+    suspend fun findLandlordUidByEmail(email: String): String? = try {
+        val result = functions.getHttpsCallable("findLandlordByEmail${CloudFunctionEnv.suffix}")
+            .call(hashMapOf("email" to email.trim().lowercase(Locale.ROOT)))
             .await()
-            .toObjects(Landlord::class.java)
-            .firstOrNull()
+        (result.getData() as? Map<*, *>)?.get("uid") as? String
+    } catch (e: FirebaseFunctionsException) {
+        if (e.code == FirebaseFunctionsException.Code.NOT_FOUND) null else throw e
+    }
+
+    suspend fun landlordEmails(propertyId: String): Map<String, String> {
+        val result = functions.getHttpsCallable("landlordEmails${CloudFunctionEnv.suffix}")
+            .call(hashMapOf("propertyId" to propertyId))
+            .await()
+        val emails = (result.getData() as? Map<*, *>)?.get("emails") as? Map<*, *> ?: return emptyMap()
+        return emails.entries.mapNotNull { (uid, email) ->
+            if (uid is String && email is String) uid to email else null
+        }.toMap()
+    }
 
     /**
-     * Anchors the new Pro expiry to Firestore's **server** clock, not the
-     * device clock (a locally-altered device date/time must not be able to
-     * fake a longer subscription) — write a serverTimestamp field, re-read it
-     * with a forced server fetch, then compute `periodDays` (+ a small grace
-     * buffer) forward from that resolved server time. No Google Play
-     * Developer API / Cloud Function round trip; this is purely a Firestore
-     * server-timestamp trick.
+     * Pro is recorded only by the server: verifyPurchase{Env} checks the
+     * purchase with Google Play and writes `proExpiryDate` on the profile
+     * (clients can't write Pro fields — Firestore rules).
      */
-    suspend fun grantProEntitlement(landlordId: String, periodDays: Int, source: String) {
-        val docRef = landlordsCollection.document(landlordId)
-        docRef.update("proServerCheck", FieldValue.serverTimestamp()).await()
-        val resolved = docRef.get(Source.SERVER).await()
-        val serverNow = resolved.getDate("proServerCheck") ?: Date()
-        val expiry = Date(serverNow.time + periodDays * DAY_MILLIS)
-        docRef.update(mapOf("proExpiryDate" to expiry, "proSource" to source)).await()
+    suspend fun verifyPlayPurchase(purchaseToken: String) {
+        functions.getHttpsCallable("verifyPurchase${CloudFunctionEnv.suffix}")
+            .call(hashMapOf("platform" to "android", "purchaseToken" to purchaseToken))
+            .await()
     }
 
-    private companion object {
-        const val DAY_MILLIS = 24L * 60 * 60 * 1000
-    }
 }

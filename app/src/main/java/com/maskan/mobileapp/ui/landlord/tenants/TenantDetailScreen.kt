@@ -89,6 +89,8 @@ fun TenantDetailScreen(
     onRecordPayment: (String) -> Unit,
     onDocumentsClick: (String) -> Unit,
     onUpgradeRequired: () -> Unit,
+    /** Shown beside the tenants list on tablets — no back button. */
+    embedded: Boolean = false,
 ) {
     val colors = MaskanTheme.colors
     val context = LocalContext.current
@@ -140,7 +142,7 @@ fun TenantDetailScreen(
 
     Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding().imePadding()) {
         Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Box(
+            if (!embedded) Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .size(40.dp)

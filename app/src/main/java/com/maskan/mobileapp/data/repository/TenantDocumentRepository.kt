@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
 import com.maskan.mobileapp.data.model.PropertyDocument
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -93,7 +94,9 @@ class TenantDocumentRepository(
     }
 
     private suspend fun performUpload(bytes: ByteArray, filename: String, baseName: String, mimeType: String, tenantId: String, landlordId: String) {
-        val path = "tenants/${StorageEnv.folder}/$landlordId/$tenantId/documents/${UUID.randomUUID()}_$filename"
+        // Under the uploader's uid, which the Storage rules require.
+        val uploaderId = FirebaseAuth.getInstance().currentUser?.uid ?: landlordId
+        val path = "tenants/${StorageEnv.folder}/$uploaderId/$tenantId/documents/${UUID.randomUUID()}_$filename"
         _isUploading.value = true
         _uploadProgress.value = 0f
         try {
@@ -119,7 +122,9 @@ class TenantDocumentRepository(
     }
 
     suspend fun delete(document: PropertyDocument, tenantId: String) {
-        storage.reference.child(document.storagePath).delete().await()
+        // Only the uploader may delete the file itself (Storage rules); a
+        // co-owner's upload stays behind and is cleared with their account.
+        runCatching { storage.reference.child(document.storagePath).delete().await() }
         documentsCollection(tenantId).document(document.id).delete().await()
     }
 

@@ -49,7 +49,7 @@ class AppContainer(context: Context) {
     val tenantRepository = TenantRepository(firestore, functions)
     val billingRepository = BillingRepository(firestore)
     val serviceRequestRepository = ServiceRequestRepository(firestore)
-    val landlordRepository = LandlordRepository(firestore)
+    val landlordRepository = LandlordRepository(firestore, functions)
     val purchaseRepository = PurchaseRepository(appContext, landlordRepository)
     val updateRepository = UpdateRepository(remoteConfig, appContext.packageName, currentVersionCode())
     val maintenanceRepository = MaintenanceRepository(firestore)

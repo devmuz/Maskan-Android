@@ -1,5 +1,7 @@
 package com.maskan.mobileapp.ui.nav
 
+import androidx.compose.ui.unit.dp
+import com.maskan.mobileapp.ui.components.ReadableRoute
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,9 +57,9 @@ fun MaskanNavHost(navController: NavHostController = rememberNavController()) {
         }
 
         composable(Routes.ROLE_SELECT) { RoleSelectScreen(navController) }
-        composable(Routes.LANDLORD_LOGIN) { LandlordLoginScreen(navController) }
-        composable(Routes.LANDLORD_SIGNUP) { LandlordSignUpScreen(navController) }
-        composable(Routes.TENANT_LOGIN) { TenantLoginScreen(navController) }
+        composable(Routes.LANDLORD_LOGIN) { ReadableRoute(maxWidth = 560.dp) { LandlordLoginScreen(navController) } }
+        composable(Routes.LANDLORD_SIGNUP) { ReadableRoute(maxWidth = 560.dp) { LandlordSignUpScreen(navController) } }
+        composable(Routes.TENANT_LOGIN) { ReadableRoute(maxWidth = 560.dp) { TenantLoginScreen(navController) } }
 
         composable(Routes.LANDLORD_SHELL) {
             LandlordShellScreen(

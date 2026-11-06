@@ -57,7 +57,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBack: () -> Unit, onEdit: (String) -> Unit, onUpgradeRequired: () -> Unit) {
+/** [embedded]: shown beside the properties list on tablets — no back button. */
+fun PropertyDetailScreen(
+    viewModel: LandlordViewModel,
+    propertyId: String,
+    onBack: () -> Unit,
+    onEdit: (String) -> Unit,
+    onUpgradeRequired: () -> Unit,
+    embedded: Boolean = false,
+) {
     val colors = MaskanTheme.colors
     val properties by viewModel.properties.collectAsStateWithLifecycle()
     val tenants by viewModel.tenants.collectAsStateWithLifecycle()
@@ -89,7 +97,7 @@ fun PropertyDetailScreen(viewModel: LandlordViewModel, propertyId: String, onBac
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
+            if (!embedded) IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
             IconButton(onClick = { if (isLocked) onUpgradeRequired() else onEdit(property.id) }) { Icon(Icons.Filled.Edit, contentDescription = "Edit", tint = colors.textPrimary) }
         }
 

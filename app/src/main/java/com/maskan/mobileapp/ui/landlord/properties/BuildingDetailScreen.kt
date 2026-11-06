@@ -81,6 +81,8 @@ fun BuildingDetailScreen(
     viewModel: LandlordViewModel,
     propertyId: String,
     onBack: () -> Unit,
+    /** Shown beside the properties list on tablets — no back button. */
+    embedded: Boolean = false,
     onFlatClick: (String) -> Unit,
     onEdit: (String) -> Unit,
     onUpgradeRequired: () -> Unit,
@@ -122,8 +124,9 @@ fun BuildingDetailScreen(
     var ownerEmail by remember { mutableStateOf<String?>(null) }
     var coOwnerEmails by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     LaunchedEffect(representative.landlordId, coOwnerUids) {
-        if (!isOwner) ownerEmail = viewModel.landlordRepository.getById(representative.landlordId)?.email
-        coOwnerEmails = coOwnerUids.associateWith { uid -> viewModel.landlordRepository.getById(uid)?.email ?: uid }
+        val emails = runCatching { viewModel.landlordRepository.landlordEmails(representative.id) }.getOrDefault(emptyMap())
+        if (!isOwner) ownerEmail = emails[representative.landlordId]
+        coOwnerEmails = coOwnerUids.associateWith { uid -> emails[uid] ?: uid }
     }
 
     var showAddCoOwnerForm by remember { mutableStateOf(false) }
@@ -155,7 +158,7 @@ fun BuildingDetailScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
+            if (!embedded) IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
             if (isOwner) {
                 IconButton(onClick = { if (isLocked) onUpgradeRequired() else onEdit(representative.id) }) {
                     Icon(Icons.Filled.Edit, contentDescription = "Edit", tint = colors.textPrimary)
@@ -361,13 +364,13 @@ fun BuildingDetailScreen(
                                 actionError = null
                                 scope.launch {
                                     try {
-                                        val found = viewModel.landlordRepository.findByEmail(email)
+                                        val foundUid = viewModel.landlordRepository.findLandlordUidByEmail(email)
                                         when {
-                                            found == null -> actionError = "No Maskan account found for that email."
-                                            found.id == myUid -> actionError = "You already own this building."
-                                            coOwnerUids.contains(found.id) -> actionError = "Already a co-owner."
+                                            foundUid == null -> actionError = "No Maskan account found for that email."
+                                            foundUid == myUid -> actionError = "You already own this building."
+                                            coOwnerUids.contains(foundUid) -> actionError = "Already a co-owner."
                                             else -> {
-                                                viewModel.propertyRepository.addCoOwner(representative, siblingIds, found.id, coOwnerLimit)
+                                                viewModel.propertyRepository.addCoOwner(representative, siblingIds, foundUid, coOwnerLimit)
                                                 showAddCoOwnerForm = false
                                             }
                                         }

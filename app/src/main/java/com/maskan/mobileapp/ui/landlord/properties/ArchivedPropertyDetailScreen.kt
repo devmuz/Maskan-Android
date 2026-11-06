@@ -58,6 +58,8 @@ fun ArchivedPropertyDetailScreen(
     viewModel: LandlordViewModel,
     propertyId: String,
     onBack: () -> Unit,
+    /** Shown beside the properties list on tablets — no back button. */
+    embedded: Boolean = false,
     onDocumentsClick: (String) -> Unit,
     onBillClick: (String) -> Unit,
 ) {
@@ -86,7 +88,7 @@ fun ArchivedPropertyDetailScreen(
 
     Column(modifier = Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
+            if (!embedded) IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) }
             Text(text = property.displayBuildingName, style = MaskanType.bodyMedium, color = colors.textPrimary, modifier = Modifier.padding(start = 4.dp))
         }
 
