@@ -22,6 +22,22 @@
           }
         },
         {
+          "client_id": "1069668978695-jk75tkkcbgd5jf1a2rtan7bd0qhbb38n.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.maskan.mobileapp",
+            "certificate_hash": "49b318c66678d70a6f6766b8f77e09b851ee4201"
+          }
+        },
+        {
+          "client_id": "1069668978695-l63m7jodndu0jvmimmcjavd0ofpjlhoh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.maskan.mobileapp",
+            "certificate_hash": "6a18dcacfdef9bb082b09a0b8b271b8b8ff90b6c"
+          }
+        },
+        {
           "client_id": "1069668978695-g313aj19iqs4cjdnh4seu9nigeb0jota.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -54,6 +70,42 @@
         "mobilesdk_app_id": "1:1069668978695:android:9ef582415978b6d0d35aa2",
         "android_client_info": {
           "package_name": "com.maskan.mobileapp.dev"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1069668978695-g313aj19iqs4cjdnh4seu9nigeb0jota.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUv5Pdegf8GVNVFX7Wx2q5_BBDA01pDDU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1069668978695-g313aj19iqs4cjdnh4seu9nigeb0jota.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1069668978695-atjv3jtjlr7uml09ei9nprgrsm368j0r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.maskan.mobileapp.uat"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1069668978695:android:9fad286f6586f138d35aa2",
+        "android_client_info": {
+          "package_name": "com.maskan.mobileapp.uat"
         }
       },
       "oauth_client": [
